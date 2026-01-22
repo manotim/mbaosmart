@@ -1,0 +1,124 @@
+{% extends 'base/base.html' %}
+
+{% block title %}User Management - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-people"></i> User Management</h2>
+        <div>
+            <a href="{% url 'accounts:register' %}" class="btn btn-success">
+                <i class="bi bi-person-plus"></i> Add New User
+            </a>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="role" class="form-label">Filter by Role</label>
+                    <select name="role" id="role" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Roles</option>
+                        {% for role_code, role_name in user_roles %}
+                            <option value="{{ role_code }}" {% if request.GET.role == role_code %}selected{% endif %}>
+                                {{ role_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Quick Actions</label>
+                    <div>
+                        <a href="{% url 'accounts:user_list' %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-arrow-clockwise"></i> Reset Filters
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Users Table -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Username</th>
+                            <th>Full Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Phone</th>
+                            <th>Joined</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>
+                                <strong>{{ user.username }}</strong>
+                                {% if user.is_superuser %}
+                                    <span class="badge bg-danger">Admin</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.get_full_name|default:"-" }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ user.get_role_display }}</span>
+                            </td>
+                            <td>{{ user.phone_number|default:"-" }}</td>
+                            <td>{{ user.date_joined|date:"d M Y" }}</td>
+                            <td>
+                                {% if user.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'accounts:user_detail' user.pk %}" 
+                                       class="btn btn-outline-primary" title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if request.user != user %}
+                                        <a href="{% url 'accounts:toggle_user_active' user.pk %}" 
+                                           class="btn btn-outline-warning" title="Toggle Status">
+                                            <i class="bi bi-power"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                <i class="bi bi-people display-6"></i><br>
+                                No users found
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- User Roles Legend -->
+            <div class="mt-4">
+                <h6>User Roles Legend:</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for role_code, role_name in user_roles %}
+                    <span class="badge bg-secondary">{{ role_name }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

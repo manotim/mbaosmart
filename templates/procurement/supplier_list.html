@@ -1,0 +1,119 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Suppliers - MbaoSmart{% endblock %}
+{% block page_title %}Suppliers Management{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <form method="get" class="d-flex">
+            <input type="text" name="search" class="form-control me-2" 
+                   placeholder="Search suppliers..." value="{{ request.GET.search }}">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-search"></i>
+            </button>
+        </form>
+    </div>
+    <div class="col-md-6 text-end">
+        {% if perms.procurement.add_supplier %}
+        <a href="{% url 'accounts:supplier_create' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Add New Supplier
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Contact Person</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>TIN Number</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for supplier in suppliers %}
+                    <tr>
+                        <td>
+                            <strong>{{ supplier.name }}</strong><br>
+                            <small class="text-muted">{{ supplier.address|truncatechars:50 }}</small>
+                        </td>
+                        <td>{{ supplier.contact_person }}</td>
+                        <td>{{ supplier.phone }}</td>
+                        <td>{{ supplier.email }}</td>
+                        <td>{{ supplier.tin_number }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'accounts:purchase_order_create' %}?supplier={{ supplier.id }}" 
+                                   class="btn btn-outline-primary" title="Create PO">
+                                    <i class="bi bi-file-text"></i>
+                                </a>
+                                <a href="#" class="btn btn-outline-info" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if perms.procurement.change_supplier %}
+                                <a href="{% url 'accounts:supplier_edit' supplier.pk %}" 
+                                   class="btn btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% endif %}
+                                {% if perms.procurement.delete_supplier %}
+                                <a href="{% url 'accounts:supplier_delete' supplier.pk %}" 
+                                   class="btn btn-outline-danger confirm-delete" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <i class="bi bi-people display-4 text-muted"></i>
+                            <h5 class="mt-3">No suppliers found</h5>
+                            <p class="text-muted">Add your first supplier to get started.</p>
+                            {% if perms.procurement.add_supplier %}
+                            <a href="{% url 'accounts:supplier_create' %}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle"></i> Add Supplier
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if is_paginated %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">Previous</a>
+                </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

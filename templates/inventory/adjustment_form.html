@@ -1,0 +1,75 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Adjust Stock - MbaoSmart{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">{{ title }}</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="adjustmentForm">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.raw_material|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.adjustment_type|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.quantity|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.reason|as_crispy_field }}
+                        </div>
+                        <div class="col-md-12">
+                            {{ form.notes|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Note:</strong> Stock adjustments will create an inventory transaction and update the stock level immediately.
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{% url 'accounts:raw_material_list' %}" class="btn btn-secondary me-md-2">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Save Adjustment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Get material details when selected
+        $('#id_raw_material').change(function() {
+            var materialId = $(this).val();
+            if (materialId) {
+                $.ajax({
+                    url: '{% url "accounts:api_material_details" 0 %}'.replace('0', materialId),
+                    type: 'GET',
+                    success: function(data) {
+                        // Update form with material details if needed
+                        console.log('Material details:', data);
+                    }
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

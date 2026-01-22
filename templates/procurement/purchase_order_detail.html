@@ -1,0 +1,218 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Purchase Order {{ purchase_order.po_number }} - MbaoSmart{% endblock %}
+{% block page_title %}Purchase Order: {{ purchase_order.po_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Order Details</h5>
+                    <span class="badge bg-{% if purchase_order.status == 'approved' %}success{% elif purchase_order.status == 'pending_approval' %}warning{% elif purchase_order.status == 'rejected' %}danger{% elif purchase_order.status == 'paid' %}info{% elif purchase_order.status == 'completed' %}secondary{% else %}light text-dark{% endif %}">
+                        {{ purchase_order.get_status_display }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="40%">Supplier:</th>
+                                <td>{{ purchase_order.supplier.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Contact Person:</th>
+                                <td>{{ purchase_order.supplier.contact_person }}</td>
+                            </tr>
+                            <tr>
+                                <th>Phone:</th>
+                                <td>{{ purchase_order.supplier.phone }}</td>
+                            </tr>
+                            <tr>
+                                <th>Email:</th>
+                                <td>{{ purchase_order.supplier.email }}</td>
+                            </tr>
+                            <tr>
+                                <th>Address:</th>
+                                <td>{{ purchase_order.supplier.address|linebreaks }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="40%">Requested By:</th>
+                                <td>{{ purchase_order.requested_by.get_full_name|default:purchase_order.requested_by.username }}</td>
+                            </tr>
+                            <tr>
+                                <th>Created Date:</th>
+                                <td>{{ purchase_order.created_at|date:"d M Y H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Delivery Date:</th>
+                                <td>{{ purchase_order.delivery_date|date:"d M Y"|default:"Not set" }}</td>
+                            </tr>
+                            {% if purchase_order.approved_by %}
+                            <tr>
+                                <th>Approved By:</th>
+                                <td>{{ purchase_order.approved_by.get_full_name|default:purchase_order.approved_by.username }}</td>
+                            </tr>
+                            <tr>
+                                <th>Approved Date:</th>
+                                <td>{{ purchase_order.approved_at|date:"d M Y H:i" }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if purchase_order.payment_date %}
+                            <tr>
+                                <th>Payment Date:</th>
+                                <td>{{ purchase_order.payment_date|date:"d M Y" }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+                
+                {% if purchase_order.notes %}
+                <div class="alert alert-info mt-3">
+                    <strong>Notes:</strong><br>
+                    {{ purchase_order.notes|linebreaks }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Order Items</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Raw Material</th>
+                                <th>Unit</th>
+                                <th class="text-end">Quantity</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Total Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in purchase_order.items.all %}
+                            <tr>
+                                <td>{{ item.raw_material.name }}</td>
+                                <td>{{ item.raw_material.get_unit_display }}</td>
+                                <td class="text-end">{{ item.quantity|floatformat:2 }}</td>
+                                <td class="text-end">Ksh {{ item.unit_price|floatformat:2 }}</td>
+                                <td class="text-end fw-bold">Ksh {{ item.total_price|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4">No items in this order</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-active">
+                            <tr>
+                                <td colspan="4" class="text-end fw-bold">Total Amount:</td>
+                                <td class="text-end fw-bold fs-5">Ksh {{ purchase_order.total_amount|floatformat:2 }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if purchase_order.can_approve and perms.procurement.change_purchaseorder %}
+                    <a href="{% url 'accounts:purchase_order_approve' purchase_order.pk %}" 
+                       class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Approve Purchase Order
+                    </a>
+                    <a href="{% url 'accounts:purchase_order_reject' purchase_order.pk %}" 
+                       class="btn btn-danger">
+                        <i class="bi bi-x-circle"></i> Reject Purchase Order
+                    </a>
+                    {% endif %}
+                    
+                    {% if purchase_order.can_mark_paid and perms.procurement.change_purchaseorder %}
+                    <a href="{% url 'accounts:purchase_order_mark_paid' purchase_order.pk %}" 
+                       class="btn btn-info">
+                        <i class="bi bi-cash-coin"></i> Mark as Paid
+                    </a>
+                    {% endif %}
+                    
+                    {% if purchase_order.can_create_grn and perms.procurement.add_goodsreceivednote %}
+                    <a href="{% url 'accounts:grn_create' purchase_order.pk %}" 
+                       class="btn btn-warning">
+                        <i class="bi bi-clipboard-check"></i> Create GRN
+                    </a>
+                    {% endif %}
+                    
+                    <a href="{% url 'accounts:purchase_order_list' %}" 
+                       class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to List
+                    </a>
+                    
+                    <button onclick="window.print()" class="btn btn-outline-primary">
+                        <i class="bi bi-printer"></i> Print PO
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        {% if purchase_order.grn %}
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Goods Received Note</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <th>GRN Number:</th>
+                        <td>{{ purchase_order.grn.grn_number }}</td>
+                    </tr>
+                    <tr>
+                        <th>Received By:</th>
+                        <td>{{ purchase_order.grn.received_by.get_full_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Checked By:</th>
+                        <td>{{ purchase_order.grn.checked_by.get_full_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Received Date:</th>
+                        <td>{{ purchase_order.grn.received_date|date:"d M Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>
+                            {% if purchase_order.grn.is_verified %}
+                            <span class="badge bg-success">Verified</span>
+                            {% else %}
+                            <span class="badge bg-warning">Pending Verification</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+                <a href="{% url 'accounts:grn_detail' purchase_order.grn.pk %}" 
+                   class="btn btn-sm btn-outline-primary w-100">
+                    View GRN Details
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

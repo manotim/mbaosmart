@@ -1,0 +1,149 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}Create Purchase Order - MbaoSmart{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .select2-container--default .select2-selection--single {
+        height: calc(1.5em + 0.75rem + 2px);
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: calc(1.5em + 0.75rem);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <form method="post" id="purchaseOrderForm">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    {{ form.supplier|as_crispy_field }}
+                </div>
+                <div class="col-md-6">
+                    {{ form.delivery_date|as_crispy_field }}
+                </div>
+                <div class="col-md-12">
+                    {{ form.notes|as_crispy_field }}
+                </div>
+            </div>
+            
+            <h5 class="mb-3">Order Items</h5>
+            {{ formset.management_form }}
+            
+            <div class="table-responsive">
+                <table class="table table-bordered" id="items-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="40%">Raw Material</th>
+                            <th width="20%">Quantity</th>
+                            <th width="20%">Unit Price (Ksh)</th>
+                            <th width="15%">Total (Ksh)</th>
+                            <th width="5%">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody id="formset-body">
+                        {% for form in formset %}
+                        <tr class="formset-row">
+                            <td>{{ form.raw_material|as_crispy_field }}</td>
+                            <td>{{ form.quantity|as_crispy_field }}</td>
+                            <td>{{ form.unit_price|as_crispy_field }}</td>
+                            <td class="total-cell text-end fw-bold">0.00</td>
+                            <td class="text-center">
+                                {% if formset.can_delete %}
+                                {{ form.DELETE }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-active">
+                        <tr>
+                            <td colspan="3" class="text-end fw-bold">Grand Total:</td>
+                            <td id="grand-total" class="text-end fw-bold fs-5">0.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                <a href="{% url 'accounts:purchase_order_list' %}" class="btn btn-secondary me-md-2">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> Submit for Approval
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Initialize Select2 for raw material dropdowns
+        $('.select2').select2({
+            placeholder: "Select raw material",
+            allowClear: true
+        });
+        
+        // Calculate totals
+        function calculateTotals() {
+            let grandTotal = 0;
+            
+            $('.formset-row').each(function() {
+                const $row = $(this);
+                const quantity = parseFloat($row.find('input[name$="-quantity"]').val()) || 0;
+                const unitPrice = parseFloat($row.find('input[name$="-unit_price"]').val()) || 0;
+                const total = quantity * unitPrice;
+                
+                $row.find('.total-cell').text(total.toFixed(2));
+                grandTotal += total;
+            });
+            
+            $('#grand-total').text(grandTotal.toFixed(2));
+        }
+        
+        // Calculate on input change
+        $(document).on('input', 'input[name$="-quantity"], input[name$="-unit_price"]', function() {
+            calculateTotals();
+        });
+        
+        // Initial calculation
+        calculateTotals();
+        
+        // Add new row
+        $('#add-row').click(function() {
+            const formCount = $('#id_items-TOTAL_FORMS').val();
+            const newForm = $('#empty-form').html().replace(/__prefix__/g, formCount);
+            $('#formset-body').append(newForm);
+            $('#id_items-TOTAL_FORMS').val(parseInt(formCount) + 1);
+            
+            // Reinitialize Select2 for new row
+            $('#formset-body .select2:last').select2({
+                placeholder: "Select raw material",
+                allowClear: true
+            });
+        });
+        
+        // Remove row
+        $(document).on('click', '.remove-row', function() {
+            $(this).closest('.formset-row').remove();
+            calculateTotals();
+        });
+    });
+</script>
+{% endblock %}

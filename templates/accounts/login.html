@@ -1,0 +1,58 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Login - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white text-center py-4">
+                    <h3><i class="bi bi-box-arrow-in-right"></i> MbaoSmart Login</h3>
+                    <p class="mb-0">Furniture Manufacturing ERP System</p>
+                </div>
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <img src="#" alt="MbaoSmart Logo" class="mb-3" style="max-width: 150px;">
+                        <h4>Welcome Back!</h4>
+                        <p class="text-muted">Please sign in to continue</p>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-box-arrow-in-right"></i> Sign In
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="text-center">
+                        <p class="text-muted mb-2">Demo Accounts:</p>
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Owner:<br>admin / admin123</small>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Fundi:<br>fundi / fundi123</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <p class="text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            Contact system administrator for account issues
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

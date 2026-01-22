@@ -1,0 +1,565 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Dashboard - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm bg-gradient-primary text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-1">Welcome, {{ request.user.get_full_name|default:request.user.username }}!</h2>
+                            <p class="mb-0">
+                                <i class="bi bi-calendar-check"></i> 
+                                {{ stats.date|date:"l, F j, Y"|default:today|date:"l, F j, Y" }}
+                            </p>
+                            <small>MbaoSmart Furniture Manufacturing ERP System</small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="bg-white rounded p-3 text-dark">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-clock-history"></i> 
+                                    {% now "H:i" %}
+                                </h5>
+                                <small class="text-muted">System Time</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Alerts -->
+    {% if alerts %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> System Alerts</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for alert in alerts %}
+                        <div class="col-md-6 col-lg-4 mb-2">
+                            <div class="alert alert-{{ alert.type }} alert-dismissible fade show mb-0" role="alert">
+                                <i class="bi bi-info-circle me-2"></i>{{ alert.message }}
+                                {% if alert.link %}
+                                <a href="{{ alert.link }}" class="alert-link ms-2">View</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Dashboard Cards based on User Role -->
+    {% if user_role == 'owner' %}
+    <!-- OWNER DASHBOARD -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card blue">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">Ksh {{ stats.weekly_sales|floatformat:0|default:0 }}</h2>
+                        <p class="mb-0">Weekly Sales</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-currency-dollar" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>
+                        <i class="bi bi-arrow-up"></i>
+                        Monthly: Ksh {{ stats.monthly_sales|floatformat:0|default:0 }}
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card orange">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.low_stock_count }}</h2>
+                        <p class="mb-0">Low Stock Items</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Need immediate attention</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card green">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.pending_production }}</h2>
+                        <p class="mb-0">Production Orders</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-gear" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Pending & In Progress</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card purple">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.active_workers }}</h2>
+                        <p class="mb-0">Active Workers</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-people" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>{{ stats.shop_count }} Shops Operating</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% elif user_role == 'store_manager' %}
+    <!-- STORE MANAGER DASHBOARD -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card red">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.pending_receipts }}</h2>
+                        <p class="mb-0">Pending Receipts</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-truck" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Awaiting delivery</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card orange">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.low_stock_items }}</h2>
+                        <p class="mb-0">Low Stock Items</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Need reorder</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card blue">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.recent_transactions }}</h2>
+                        <p class="mb-0">Recent Transactions</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-arrow-left-right" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Last 7 days</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card green">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.total_materials }}</h2>
+                        <p class="mb-0">Raw Materials</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-box" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>In inventory</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% elif user_role == 'fundi' %}
+    <!-- WORKER DASHBOARD -->
+    <div class="row mb-4">
+        <div class="col-md-4 col-sm-6">
+            <div class="stat-card blue">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.assigned_tasks }}</h2>
+                        <p class="mb-0">Pending Tasks</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-list-task" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Waiting for you</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 col-sm-6">
+            <div class="stat-card green">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.completed_this_week }}</h2>
+                        <p class="mb-0">Completed This Week</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-check-circle" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Great work!</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 col-sm-12">
+            <div class="stat-card orange">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.total_hours|floatformat:1 }}</h2>
+                        <p class="mb-0">Hours This Week</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-clock-history" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>{{ stats.pending_payment }} tasks pending payment</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% elif user_role == 'production_manager' %}
+    <!-- PRODUCTION MANAGER DASHBOARD -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card blue">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.in_progress }}</h2>
+                        <p class="mb-0">In Progress</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-gear" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Production Orders</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card green">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.completed_today }}</h2>
+                        <p class="mb-0">Completed Today</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-check-circle" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Good progress</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card orange">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.pending_tasks }}</h2>
+                        <p class="mb-0">Pending Tasks</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-list-task" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Need assignment</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card red">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.unavailable_materials }}</h2>
+                        <p class="mb-0">Out of Stock</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-x-circle" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Materials needed</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% elif user_role == 'accountant' %}
+    <!-- ACCOUNTANT DASHBOARD -->
+    <div class="row mb-4">
+        <div class="col-md-4 col-sm-6">
+            <div class="stat-card red">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.unpaid_po }}</h2>
+                        <p class="mb-0">Unpaid POs</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-receipt" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Require payment</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 col-sm-6">
+            <div class="stat-card orange">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">Ksh {{ stats.unpaid_salaries|floatformat:0|default:0 }}</h2>
+                        <p class="mb-0">Pending Salaries</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-cash" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>To be paid</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 col-sm-12">
+            <div class="stat-card green">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">Ksh {{ stats.monthly_revenue|floatformat:0|default:0 }}</h2>
+                        <p class="mb-0">Monthly Revenue</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-graph-up" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Last 30 days</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% elif user_role == 'sales' %}
+    <!-- SALES DASHBOARD -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card blue">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">Ksh {{ stats.shop_sales|floatformat:0|default:0 }}</h2>
+                        <p class="mb-0">Monthly Sales</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-currency-dollar" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Your shop performance</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card orange">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.low_stock_products }}</h2>
+                        <p class="mb-0">Low Stock</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Need restocking</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card green">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.today_sales }}</h2>
+                        <p class="mb-0">Sales Today</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-cart-check" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Transactions today</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card purple">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.pending_transfers }}</h2>
+                        <p class="mb-0">Pending Transfers</p>
+                    </div>
+                    <div class="icon">
+                        <i class="bi bi-truck" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small>Awaiting delivery</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% else %}
+    <!-- DEFAULT DASHBOARD -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <h3>{{ stats.welcome_message }}</h3>
+                    <p class="text-muted">Your personalized dashboard will appear here</p>
+                    <a href="{% url 'accounts:profile' %}" class="btn btn-primary mt-3">
+                        <i class="bi bi-person-circle"></i> Complete Your Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Recent Activities Section -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Activities</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for activity in recent_activities %}
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <i class="bi {{ activity.icon }} me-2"></i>
+                                    {{ activity.message }}
+                                </div>
+                                <small class="text-muted">{{ activity.date|timesince }} ago</small>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-info-circle display-6"></i><br>
+                            No recent activities
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% if perms.procurement.add_purchaseorder %}
+                        <div class="col-md-6">
+                            <a href="{% url 'accounts:create_purchase_order' %}" 
+                               class="btn btn-outline-primary w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3">
+                                <i class="bi bi-file-text display-6 mb-2"></i>
+                                <span>Create PO</span>
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        {% if perms.production.add_productionorder %}
+                        <div class="col-md-6">
+                            <a href="{% url 'accounts:create_production_order' %}" 
+                               class="btn btn-outline-success w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3">
+                                <i class="bi bi-gear display-6 mb-2"></i>
+                                <span>Start Production</span>
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        {% if perms.sales.add_sale %}
+                        <div class="col-md-6">
+                            <a href="{% url 'accounts:create_sale' %}" 
+                               class="btn btn-outline-warning w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3">
+                                <i class="bi bi-cart-plus display-6 mb-2"></i>
+                                <span>Record Sale</span>
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        {% if perms.hr.view_worklog %}
+                        <div class="col-md-6">
+                            <a href="{% url 'accounts:profile' %}" 
+                               class="btn btn-outline-info w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3">
+                                <i class="bi bi-clock-history display-6 mb-2"></i>
+                                <span>Log Work</span>
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,337 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Production Order {{ production_order.order_number }} - MbaoSmart{% endblock %}
+{% block page_title %}Production Order: {{ production_order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Order Details</h5>
+                    <span class="badge bg-{% if production_order.status == 'completed' %}success{% elif production_order.status == 'in_progress' %}primary{% elif production_order.status == 'planned' %}info{% elif production_order.status == 'pending' %}warning{% else %}secondary{% endif %}">
+                        {{ production_order.get_status_display }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="40%">Product:</th>
+                                <td>
+                                    <a href="{% url 'accounts:product_detail' production_order.product.id %}">
+                                        {{ production_order.product.name }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>SKU:</th>
+                                <td>{{ production_order.product.sku }}</td>
+                            </tr>
+                            <tr>
+                                <th>Quantity:</th>
+                                <td class="fw-bold">{{ production_order.quantity }} units</td>
+                            </tr>
+                            <tr>
+                                <th>Created By:</th>
+                                <td>{{ production_order.created_by.get_full_name }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="40%">Start Date:</th>
+                                <td>{{ production_order.start_date|date:"d M Y" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Expected Completion:</th>
+                                <td>{{ production_order.expected_completion_date|date:"d M Y" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Actual Completion:</th>
+                                <td>
+                                    {% if production_order.actual_completion_date %}
+                                    {{ production_order.actual_completion_date|date:"d M Y" }}
+                                    {% else %}
+                                    <span class="text-muted">Not completed</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Priority:</th>
+                                <td>
+                                    {% if production_order.priority == 3 %}
+                                    <span class="badge bg-danger">High</span>
+                                    {% elif production_order.priority == 2 %}
+                                    <span class="badge bg-warning">Medium</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Low</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="text-muted">Total Cost</h6>
+                                <h4 class="fw-bold">Ksh {{ production_order.total_production_cost|floatformat:2 }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="text-muted">Material Cost</h6>
+                                <h4 class="fw-bold">Ksh {{ production_order.total_material_cost|floatformat:2 }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="text-muted">Labour Cost</h6>
+                                <h4 class="fw-bold">Ksh {{ production_order.total_labour_cost|floatformat:2 }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if production_order.notes %}
+                <div class="alert alert-info mt-3">
+                    <strong>Notes:</strong><br>
+                    {{ production_order.notes|linebreaks }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <div class="btn-group">
+                    {% if production_order.status == 'pending' and perms.production.change_productionorder %}
+                    <a href="{% url 'accounts:plan_production_order' production_order.id %}" 
+                       class="btn btn-info">
+                        <i class="bi bi-check-circle"></i> Plan Production
+                    </a>
+                    {% endif %}
+                    
+                    {% if production_order.status == 'planned' and perms.production.change_productionorder %}
+                    <a href="{% url 'accounts:start_production' production_order.id %}" 
+                       class="btn btn-success">
+                        <i class="bi bi-play-circle"></i> Start Production
+                    </a>
+                    {% endif %}
+                    
+                    {% if production_order.status == 'in_progress' and perms.production.change_productionorder %}
+                    <a href="{% url 'accounts:complete_production' production_order.id %}" 
+                       class="btn btn-primary">
+                        <i class="bi bi-check-all"></i> Complete Production
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Material Requirements</h5>
+            </div>
+            <div class="card-body">
+                {% if material_requirements %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Material</th>
+                                <th>Unit</th>
+                                <th class="text-end">Required Per Unit</th>
+                                <th class="text-end">Total Required</th>
+                                <th class="text-end">Current Stock</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for material, data in material_requirements.items %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'accounts:raw_material_detail' material.id %}">
+                                        {{ material.name }}
+                                    </a>
+                                </td>
+                                <td>{{ material.get_unit_display }}</td>
+                                <td class="text-end">{{ data.quantity_required|div:production_order.quantity|floatformat:2 }}</td>
+                                <td class="text-end fw-bold">{{ data.quantity_required|floatformat:2 }}</td>
+                                <td class="text-end">{{ data.current_stock|floatformat:2 }}</td>
+                                <td>
+                                    {% if data.sufficient %}
+                                    <span class="badge bg-success">Sufficient</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Insufficient</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% if not materials_sufficient %}
+                <div class="alert alert-danger mt-3">
+                    <h6><i class="bi bi-exclamation-triangle"></i> Insufficient Materials</h6>
+                    <ul class="mb-0">
+                        {% for material in insufficient_materials %}
+                        <li>
+                            {{ material.material.name }}: Need {{ material.required|floatformat:2 }} {{ material.unit }}, 
+                            have {{ material.available|floatformat:2 }} (Shortage: {{ material.shortage|floatformat:2 }} {{ material.unit }})
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <a href="{% url 'accounts:purchase_order_create' %}" class="btn btn-sm btn-warning mt-2">
+                        <i class="bi bi-cart-plus"></i> Purchase Materials
+                    </a>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-3 text-muted">
+                    <i class="bi bi-clipboard-x display-4"></i>
+                    <p class="mt-2">No material formula defined for this product</p>
+                    <a href="{% url 'accounts:edit_product_formula' production_order.product.id %}" 
+                       class="btn btn-sm btn-primary">
+                        Define Formula
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Production Progress</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <div class="display-6 fw-bold {% if production_order.progress_percentage == 100 %}text-success{% else %}text-primary{% endif %}">
+                        {{ production_order.progress_percentage }}%
+                    </div>
+                    <div class="progress mt-2" style="height: 20px;">
+                        <div class="progress-bar {% if production_order.progress_percentage == 100 %}bg-success{% else %}bg-primary{% endif %}" 
+                             role="progressbar" 
+                             style="width: {{ production_order.progress_percentage }}%;"
+                             aria-valuenow="{{ production_order.progress_percentage }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            {{ production_order.progress_percentage }}%
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Total Tasks
+                        <span class="badge bg-primary rounded-pill">{{ tasks.count }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Completed Tasks
+                        <span class="badge bg-success rounded-pill">{{ tasks|filter_status:'completed,verified'|length }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        In Progress
+                        <span class="badge bg-warning rounded-pill">{{ tasks|filter_status:'in_progress,assigned'|length }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Pending Tasks
+                        <span class="badge bg-secondary rounded-pill">{{ tasks|filter_status:'pending'|length }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Production Tasks</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for task in tasks %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">{{ task.task_name }}</h6>
+                                <small class="text-muted">Sequence: {{ task.sequence }}</small>
+                            </div>
+                            <span class="badge bg-{% if task.status == 'verified' %}success{% elif task.status == 'completed' %}info{% elif task.status == 'in_progress' %}primary{% elif task.status == 'assigned' %}warning{% else %}secondary{% endif %}">
+                                {{ task.get_status_display }}
+                            </span>
+                        </div>
+                        
+                        <div class="mt-2">
+                            {% if task.assigned_to %}
+                            <small>Assigned to: {{ task.assigned_to.get_full_name }}</small><br>
+                            {% endif %}
+                            
+                            <small>Labour Cost: Ksh {{ task.labour_cost|floatformat:2 }}</small>
+                        </div>
+                        
+                        <div class="mt-2">
+                            <div class="btn-group btn-group-sm">
+                                {% if perms.production.change_productiontask and task.status == 'pending' %}
+                                <a href="{% url 'accounts:assign_task' task.id %}" class="btn btn-outline-warning btn-sm">
+                                    <i class="bi bi-person-plus"></i> Assign
+                                </a>
+                                {% endif %}
+                                
+                                {% if task.status == 'completed' and perms.production.change_productiontask %}
+                                <a href="{% url 'accounts:verify_task' task.id %}" class="btn btn-outline-success btn-sm">
+                                    <i class="bi bi-check-circle"></i> Verify
+                                </a>
+                                {% endif %}
+                                
+                                {% if task.assigned_to == request.user and task.status == 'assigned' %}
+                                <form method="post" action="{% url 'accounts:start_task' task.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-play-circle"></i> Start
+                                    </button>
+                                </form>
+                                {% endif %}
+                                
+                                {% if task.assigned_to == request.user and task.status == 'in_progress' %}
+                                <form method="post" action="{% url 'accounts:complete_task' task.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-info btn-sm">
+                                        <i class="bi bi-check-circle"></i> Complete
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-3 text-muted">
+                        <i class="bi bi-list-task display-4"></i>
+                        <p class="mt-2">No tasks generated yet</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Custom filter to filter tasks by status
+    function filter_status(tasks, status_string) {
+        const statuses = status_string.split(',');
+        return tasks.filter(task => statuses.includes(task.status));
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MbaoSmart Furnishings ERP{% endblock %}</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        .sidebar {
+            background-color: var(--primary-color);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .sidebar a {
+            color: #ecf0f1;
+            text-decoration: none;
+            padding: 12px 15px;
+            display: block;
+            border-left: 4px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar a:hover {
+            background-color: #34495e;
+            border-left: 4px solid var(--secondary-color);
+            color: white;
+        }
+        
+        .sidebar a.active {
+            background-color: #34495e;
+            border-left: 4px solid var(--secondary-color);
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .stat-card {
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card.blue {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+        }
+        
+        .stat-card.green {
+            background: linear-gradient(45deg, #27ae60, #229954);
+        }
+        
+        .stat-card.orange {
+            background: linear-gradient(45deg, #e67e22, #d35400);
+        }
+        
+        .stat-card.purple {
+            background: linear-gradient(45deg, #8e44ad, #732d91);
+        }
+        
+        .stat-card.red {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            color: var(--primary-color) !important;
+        }
+        
+        .badge-status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8em;
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+        
+        .btn-primary {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar Navigation -->
+            <div class="col-md-2 col-lg-2 d-md-block sidebar collapse" id="sidebarMenu">
+                <div class="position-sticky pt-3">
+                    <div class="text-center py-4">
+                        <h4 class="text-white">MbaoSmart</h4>
+                        <small class="text-muted">Furniture ERP System</small>
+                    </div>
+                    
+                    <hr class="text-muted">
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'accounts' %}active{% endif %}" 
+                               href="{% url 'accounts:profile' %}">
+                                <i class="bi bi-speedometer2"></i> Dashboard
+                            </a>
+                        </li>
+                        
+                        {% if perms.procurement.view_purchaseorder or perms.procurement.view_supplier %}
+                        <li class="nav-item">
+                            <span class="text-muted px-3 small">PROCUREMENT</span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'procurement' and 'supplier' in request.path %}active{% endif %}" 
+                               href="{% url 'accounts:supplier_list' %}">
+                                <i class="bi bi-truck"></i> Suppliers
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'procurement' and 'purchase-order' in request.path %}active{% endif %}" 
+                               href="{% url 'accounts:purchase_order_list' %}">
+                                <i class="bi bi-file-text"></i> Purchase Orders
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% if perms.inventory.view_rawmaterial %}
+                        <li class="nav-item">
+                            <span class="text-muted px-3 small">INVENTORY</span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'inventory' %}active{% endif %}" 
+                               href="{% url 'accounts:raw_material_list' %}">
+                                <i class="bi bi-box"></i> Raw Materials
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% if perms.production.view_product or perms.production.view_productionorder %}
+                        <li class="nav-item">
+                            <span class="text-muted px-3 small">PRODUCTION</span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'production' and 'product' in request.path %}active{% endif %}" 
+                               href="{% url 'accounts:product_list' %}">
+                                <i class="bi bi-chair"></i> Products
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'production' and 'production-order' in request.path %}active{% endif %}" 
+                               href="{% url 'accounts:production_order_list' %}">
+                                <i class="bi bi-gear"></i> Production Orders
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% if perms.sales.view_shop or perms.sales.view_sale %}
+                        <li class="nav-item">
+                            <span class="text-muted px-3 small">SALES & SHOPS</span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'sales' and 'shop' in request.path %}active{% endif %}" 
+                               href="{% url 'accounts:shop_list' %}">
+                                <i class="bi bi-shop"></i> Shops
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'sales' and 'sale' in request.path %}active{% endif %}" 
+                               href="{% url 'accounts:sales_list' %}">
+                                <i class="bi bi-cart-check"></i> Sales
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% if perms.hr.view_employee %}
+                        <li class="nav-item">
+                            <span class="text-muted px-3 small">HR & PAYROLL</span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' %}active{% endif %}" 
+                               href="{% url 'accounts:profile' %}">
+                                <i class="bi bi-people"></i> Employees
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        <li class="nav-item mt-4">
+                            <div class="px-3">
+                                <small class="text-muted">Logged in as:</small>
+                                <div class="text-white">{{ request.user.get_full_name|default:request.user.username }}</div>
+                                <small class="text-muted">{{ request.user.groups.first|default:"No Role" }}</small>
+                            </div>
+                        </li>
+                    </ul>
+                    
+                    <hr class="text-muted">
+                    
+                    <div class="px-3">
+                        <a href="{% url 'accounts:profile' %}" class="btn btn-outline-light btn-sm w-100 mb-2">
+                            <i class="bi bi-person-circle"></i> Profile
+                        </a>
+                        <a href="{% url 'accounts:logout' %}" class="btn btn-danger btn-sm w-100">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <main class="col-md-10 col-lg-10 ms-sm-auto px-md-4">
+                <!-- Top Navigation Bar -->
+                <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom py-3">
+                    <div class="container-fluid">
+                        <button class="btn btn-outline-secondary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
+                            <i class="bi bi-list"></i>
+                        </button>
+                        
+                        <div class="navbar-nav me-auto">
+                            <span class="navbar-brand mb-0 h1">{% block page_title %}Dashboard{% endblock %}</span>
+                        </div>
+                        
+                        <div class="d-flex">
+                            <span class="navbar-text me-3">
+                                <i class="bi bi-calendar-check"></i> {% now "j F Y" %}
+                            </span>
+                        </div>
+                    </div>
+                </nav>
+                
+                <!-- Messages/Alerts -->
+                {% if messages %}
+                <div class="mt-3">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        <i class="bi bi-info-circle me-2"></i>{{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <!-- Main Content Block -->
+                <div class="content">
+                    {% block content %}
+                    {% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script>
+        // Auto-dismiss alerts after 5 seconds
+        setTimeout(function() {
+            var alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                var bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+        
+        // Confirm before critical actions
+        document.addEventListener('DOMContentLoaded', function() {
+            var deleteButtons = document.querySelectorAll('.confirm-delete');
+            deleteButtons.forEach(function(button) {
+                button.addEventListener('click', function(e) {
+                    if (!confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
+                        e.preventDefault();
+                    }
+                });
+            });
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,317 @@
+{% extends 'base/base.html' %}
+
+{% block title %}{{ product.name }} - MbaoSmart{% endblock %}
+{% block page_title %}Product: {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Product Details</h5>
+                    <span class="badge bg-{% if product.is_active %}success{% else %}secondary{% endif %}">
+                        {% if product.is_active %}Active{% else %}Inactive{% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        {% if product.image %}
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid rounded mb-3">
+                        {% else %}
+                        <div class="bg-light rounded d-flex align-items-center justify-content-center mb-3" style="height: 200px;">
+                            <i class="bi bi-image display-4 text-muted"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-8">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="30%">Name:</th>
+                                <td><strong>{{ product.name }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>SKU:</th>
+                                <td><code>{{ product.sku }}</code></td>
+                            </tr>
+                            <tr>
+                                <th>Type:</th>
+                                <td>{{ product.get_product_type_display }}</td>
+                            </tr>
+                            <tr>
+                                <th>Selling Price:</th>
+                                <td class="fw-bold text-success">Ksh {{ product.selling_price|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <th>Production Cost:</th>
+                                <td class="fw-bold">Ksh {{ product.production_cost|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <th>Profit Margin:</th>
+                                <td>
+                                    <span class="badge bg-{% if product.profit_margin > 30 %}success{% elif product.profit_margin > 15 %}warning{% else %}danger{% endif %}">
+                                        {{ product.profit_margin|floatformat:1 }}%
+                                    </span>
+                                    (Ksh {{ profit|floatformat:2 }})
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                {% if product.description %}
+                <div class="mt-3">
+                    <strong>Description:</strong><br>
+                    <p class="text-muted">{{ product.description|linebreaks }}</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <div class="btn-group">
+                    {% if perms.production.add_productionorder %}
+                    <a href="{% url 'accounts:production_order_create' %}?product={{ product.id }}" class="btn btn-primary">
+                        <i class="bi bi-gear"></i> Create Production Order
+                    </a>
+                    {% endif %}
+                    {% if perms.production.change_product %}
+                    <a href="{% url 'accounts:edit_product_formula' product.id %}" class="btn btn-warning">
+                        <i class="bi bi-clipboard-data"></i> Edit Formula
+                    </a>
+                    <a href="{% url 'accounts:edit_labour_tasks' product.id %}" class="btn btn-info">
+                        <i class="bi bi-people"></i> Edit Labour Tasks
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">Material Formula</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if formulas %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Material</th>
+                                        <th class="text-end">Qty Required</th>
+                                        <th class="text-end">Unit Cost</th>
+                                        <th class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for formula in formulas %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'accounts:raw_material_detail' formula.raw_material.id %}">
+                                                {{ formula.raw_material.name }}
+                                            </a>
+                                        </td>
+                                        <td class="text-end">{{ formula.quantity_required|floatformat:2 }} {{ formula.raw_material.unit }}</td>
+                                        <td class="text-end">Ksh {{ formula.raw_material.unit_price|floatformat:2 }}</td>
+                                        <td class="text-end fw-bold">Ksh {{ formula.material_cost|floatformat:2 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="table-active">
+                                    <tr>
+                                        <td colspan="3" class="text-end fw-bold">Total Material Cost:</td>
+                                        <td class="text-end fw-bold">Ksh {{ total_material_cost|floatformat:2 }}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3 text-muted">
+                            <i class="bi bi-clipboard-x display-4"></i>
+                            <p class="mt-2">No material formula defined</p>
+                            {% if perms.production.change_product %}
+                            <a href="{% url 'accounts:edit_product_formula' product.id %}" class="btn btn-sm btn-primary">
+                                Add Formula
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">Labour Tasks</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if labour_tasks %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Task</th>
+                                        <th class="text-end">Hours</th>
+                                        <th class="text-end">Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for task in labour_tasks %}
+                                    <tr>
+                                        <td>
+                                            {{ task.task_name }}<br>
+                                            <small class="text-muted">{{ task.description|truncatechars:50 }}</small>
+                                        </td>
+                                        <td class="text-end">{{ task.estimated_hours|floatformat:1 }} hrs</td>
+                                        <td class="text-end fw-bold">Ksh {{ task.labour_cost|floatformat:2 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="table-active">
+                                    <tr>
+                                        <td class="text-end fw-bold">Total Labour Cost:</td>
+                                        <td></td>
+                                        <td class="text-end fw-bold">Ksh {{ total_labour_cost|floatformat:2 }}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3 text-muted">
+                            <i class="bi bi-people display-4"></i>
+                            <p class="mt-2">No labour tasks defined</p>
+                            {% if perms.production.change_product %}
+                            <a href="{% url 'accounts:edit_labour_tasks' product.id %}" class="btn btn-sm btn-primary">
+                                Add Tasks
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">Cost Breakdown</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Material Cost</span>
+                        <span class="fw-bold">Ksh {{ total_material_cost|floatformat:2 }}</span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        {% with material_percentage=total_material_cost|div:product.production_cost|multiply:100 %}
+                        <div class="progress-bar bg-info" role="progressbar" 
+                             style="width: {{ material_percentage }}%;"
+                             aria-valuenow="{{ material_percentage }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100"></div>
+                        {% endwith %}
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Labour Cost</span>
+                        <span class="fw-bold">Ksh {{ total_labour_cost|floatformat:2 }}</span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        {% with labour_percentage=total_labour_cost|div:product.production_cost|multiply:100 %}
+                        <div class="progress-bar bg-warning" role="progressbar" 
+                             style="width: {{ labour_percentage }}%;"
+                             aria-valuenow="{{ labour_percentage }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100"></div>
+                        {% endwith %}
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Total Production Cost:</span>
+                    <span class="fw-bold">Ksh {{ product.production_cost|floatformat:2 }}</span>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Selling Price:</span>
+                    <span class="fw-bold text-success">Ksh {{ product.selling_price|floatformat:2 }}</span>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Profit:</span>
+                    <span class="fw-bold text-success">Ksh {{ profit|floatformat:2 }}</span>
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <span>Profit Margin:</span>
+                    <span class="fw-bold badge bg-{% if product.profit_margin > 30 %}success{% elif product.profit_margin > 15 %}warning{% else %}danger{% endif %}">
+                        {{ product.profit_margin|floatformat:1 }}%
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">Recent Production Orders</h6>
+            </div>
+            <div class="card-body">
+                {% with orders=product.production_orders.all|slice:":5" %}
+                {% if orders %}
+                <div class="list-group list-group-flush">
+                    {% for order in orders %}
+                    <a href="{% url 'accounts:production_order_detail' order.id %}" 
+                       class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ order.order_number }}</h6>
+                            <small class="text-muted">{{ order.created_at|date:"d M" }}</small>
+                        </div>
+                        <small>Quantity: {{ order.quantity }} units</small><br>
+                        <small>Status: 
+                            <span class="badge bg-{% if order.status == 'completed' %}success{% elif order.status == 'in_progress' %}primary{% elif order.status == 'pending' %}warning{% else %}secondary{% endif %}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </small>
+                    </a>
+                    {% endfor %}
+                </div>
+                <a href="{% url 'accounts:production_order_list' %}?product={{ product.id }}" 
+                   class="btn btn-sm btn-outline-primary w-100 mt-2">
+                    View All Orders
+                </a>
+                {% else %}
+                <div class="text-center py-3 text-muted">
+                    <i class="bi bi-gear display-4"></i>
+                    <p class="mt-2">No production orders yet</p>
+                    {% if perms.production.add_productionorder %}
+                    <a href="{% url 'accounts:production_order_create' %}?product={{ product.id }}" 
+                       class="btn btn-sm btn-primary">
+                        Create First Order
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Custom filter for division
+    function divide(value, arg) {
+        return value / arg;
+    }
+</script>
+{% endblock %}

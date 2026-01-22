@@ -1,0 +1,89 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Register - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg mt-5">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-person-plus"></i> Create Your Account</h4>
+                    <small class="text-light">Register for MbaoSmart ERP System</small>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        <div class="messages mb-4">
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    <i class="bi bi-info-circle"></i> {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Note:</strong> After registration, you will be redirected to login page.
+                        Please login with your username and password.
+                    </div>
+                    
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                            <div class="alert alert-danger">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                Please correct the errors below.
+                            </div>
+                        {% endif %}
+                        
+                        {{ form|crispy }}
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-success btn-lg w-100">
+                                <i class="bi bi-person-check"></i> Create Account
+                            </button>
+                            
+                            <div class="text-center mt-3">
+                                <p class="mb-0">
+                                    Already have an account? 
+                                    <a href="{% url 'accounts:login' %}" class="text-decoration-none">
+                                        <i class="bi bi-box-arrow-in-right"></i> Login here
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="card-footer bg-light">
+                    <small class="text-muted">
+                        <i class="bi bi-shield-check"></i> Your information is secure. 
+                        By registering, you agree to our terms of service.
+                    </small>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h5><i class="bi bi-question-circle"></i> About Roles:</h5>
+                    <ul class="list-unstyled">
+                        <li><strong>Owner:</strong> Full system access</li>
+                        <li><strong>Store Manager:</strong> Manage inventory and sales</li>
+                        <li><strong>Production Manager:</strong> Manage production operations</li>
+                        <li><strong>Supervisor:</strong> Oversee workers and tasks</li>
+                        <li><strong>Accountant:</strong> Financial management</li>
+                        <li><strong>Fundi/Worker:</strong> Production and workshop tasks</li>
+                        <li><strong>Sales Person:</strong> Handle customer sales</li>
+                        <li><strong>Shop Manager:</strong> Manage retail shop operations</li>
+                        <li><strong>Customer:</strong> Place orders and view purchases</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
