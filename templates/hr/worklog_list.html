@@ -1,0 +1,325 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Work Logs - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="bi bi-clock-history text-primary me-2"></i> Work Logs
+            </h1>
+            <p class="text-muted mb-0">Track employee work hours and earnings</p>
+        </div>
+        <div>
+            {% if perms.hr.add_worklog %}
+            <a href="{% url 'hr:worklog_create' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> Add Work Log
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Hours
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_hours|floatformat:1 }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Total Amount
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                Ksh {{ total_amount|floatformat:2|intcomma }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-cash-stack fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Unpaid Amount
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                Ksh {{ unpaid_amount|floatformat:2|intcomma }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-hourglass-split fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Average Daily
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                Ksh {{ avg_daily|floatformat:2|intcomma }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-graph-up fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-wrap align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Filters</h6>
+            <form method="get" class="d-flex flex-wrap gap-2 mt-2 mt-md-0">
+                <!-- Employee Filter -->
+                <select name="employee" class="form-select" style="width: 250px;">
+                    <option value="">All Employees</option>
+                    {% for emp in employees %}
+                    <option value="{{ emp.id }}" {% if selected_employee == emp.id|stringformat:"s" %}selected{% endif %}>
+                        {{ emp.full_name }} ({{ emp.employee_id }})
+                    </option>
+                    {% endfor %}
+                </select>
+                
+                <!-- Date Range -->
+                <div class="input-group" style="width: 220px;">
+                    <span class="input-group-text">From</span>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+                </div>
+                
+                <div class="input-group" style="width: 220px;">
+                    <span class="input-group-text">To</span>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+                </div>
+                
+                <!-- Payment Status -->
+                <select name="payment_status" class="form-select" style="width: 150px;">
+                    <option value="">All Status</option>
+                    <option value="paid" {% if payment_status == 'paid' %}selected{% endif %}>Paid</option>
+                    <option value="unpaid" {% if payment_status == 'unpaid' %}selected{% endif %}>Unpaid</option>
+                </select>
+                
+                <!-- Reset Button -->
+                <a href="{% url 'hr:worklog_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
+                </a>
+            </form>
+        </div>
+    </div>
+
+    <!-- Work Logs Table -->
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Work Logs</h6>
+        </div>
+        <div class="card-body">
+            {% if work_logs %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Employee</th>
+                            <th>Task</th>
+                            <th class="text-end">Hours</th>
+                            <th class="text-end">Amount</th>
+                            <th>Payment Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in work_logs %}
+                        <tr>
+                            <td>{{ log.date|date:"d M Y" }}</td>
+                            <td>
+                                <a href="{% url 'hr:employee_detail' log.employee.id %}">
+                                    {{ log.employee.full_name }}
+                                </a>
+                                <br>
+                                <small class="text-muted">{{ log.employee.employee_id }}</small>
+                            </td>
+                            <td>
+                                {% if log.production_task %}
+                                <a href="{% url 'production:production_order_detail' log.production_task.production_order.id %}">
+                                    {{ log.task_name|truncatechars:30 }}
+                                </a>
+                                {% else %}
+                                {{ log.task_name|truncatechars:30|default:"Manual Entry" }}
+                                {% endif %}
+                                {% if log.notes %}
+                                <br>
+                                <small class="text-muted">{{ log.notes|truncatechars:30 }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ log.hours_worked|floatformat:1 }} hrs</td>
+                            <td class="text-end">
+                                <strong class="text-success">Ksh {{ log.amount_earned|floatformat:2|intcomma }}</strong>
+                            </td>
+                            <td>
+                                {% if log.is_paid %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle me-1"></i> Paid
+                                    {% if log.payment_date %}
+                                    <br>
+                                    <small>{{ log.payment_date|date:"d M Y" }}</small>
+                                    {% endif %}
+                                </span>
+                                {% else %}
+                                <span class="badge bg-warning">
+                                    <i class="bi bi-clock me-1"></i> Pending
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    {% if perms.hr.change_worklog %}
+                                    <a href="{% url 'hr:worklog_edit' log.pk %}" 
+                                       class="btn btn-outline-secondary" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if not log.is_paid and perms.hr.change_worklog %}
+                                    <button type="button" class="btn btn-outline-success mark-paid-btn" 
+                                            data-log-id="{{ log.id }}" title="Mark as Paid">
+                                        <i class="bi bi-cash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-active">
+                        <tr>
+                            <td colspan="3" class="text-end fw-bold">Totals:</td>
+                            <td class="text-end fw-bold">{{ total_hours|floatformat:1 }} hrs</td>
+                            <td class="text-end fw-bold">Ksh {{ total_amount|floatformat:2|intcomma }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if payment_status %}&payment_status={{ payment_status }}{% endif %}">
+                            Previous
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if payment_status %}&payment_status={{ payment_status }}{% endif %}">
+                            {{ num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if payment_status %}&payment_status={{ payment_status }}{% endif %}">
+                            Next
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-clock-history display-1 text-muted"></i>
+                <h4 class="mt-3">No work logs found</h4>
+                <p class="text-muted">Try adjusting your search or filters</p>
+                {% if perms.hr.add_worklog %}
+                <a href="{% url 'hr:worklog_create' %}" class="btn btn-primary mt-2">
+                    <i class="bi bi-plus-circle me-1"></i> Add First Work Log
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Mark as Paid button
+    $('.mark-paid-btn').click(function() {
+        const logId = $(this).data('log-id');
+        const csrfToken = $('[name=csrfmiddlewaretoken]').val();
+        
+        if (confirm('Mark this work log as paid?')) {
+            $.ajax({
+                url: "{% url 'hr:worklog_mark_paid' 0 %}".replace('0', logId),
+                method: 'POST',
+                data: {
+                    'csrfmiddlewaretoken': csrfToken
+                },
+                success: function(response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + response.error);
+                    }
+                },
+                error: function() {
+                    alert('An error occurred. Please try again.');
+                }
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

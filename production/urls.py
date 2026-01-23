@@ -25,10 +25,11 @@ urlpatterns = [
     
     # Production Task URLs
     path('worker-dashboard/', views.worker_dashboard, name='worker_dashboard'),
-    path('tasks/<int:task_id>/assign/', views.assign_task, name='assign_task'),
-    path('tasks/<int:task_id>/start/', views.start_task, name='start_task'),
-    path('tasks/<int:task_id>/complete/', views.complete_task, name='complete_task'),
-    path('tasks/<int:task_id>/verify/', views.verify_task, name='verify_task'),
+
+    path('tasks/<int:task_id>/assign/', views.assign_task_view, name='assign_task'),
+    path('tasks/start/', views.start_task_view, name='start_task'),
+    path('tasks/complete/', views.complete_task_view, name='complete_task'),
+    path('tasks/verify/', views.verify_task_view, name='verify_task'),
     
     # Work Station URLs
     path('workstations/', views.WorkStationListView.as_view(), name='workstation_list'),
@@ -40,4 +41,7 @@ urlpatterns = [
     path('api/product/<int:product_id>/', views.get_product_details, name='api_product_details'),
     path('api/production-order/<int:order_id>/', views.get_production_order_details, name='api_production_order_details'),
     path('api/chart-data/', views.production_chart_data, name='api_chart_data'),
+
+    
 ]
+

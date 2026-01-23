@@ -1,0 +1,335 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ employee.full_name }} - Details - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Employee Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="bi bi-person-badge text-primary me-2"></i> {{ employee.full_name }}
+            </h1>
+            <p class="text-muted mb-0">{{ employee.employee_id }} • {{ employee.get_department_display }}</p>
+        </div>
+        <div class="btn-group">
+            <a href="{% url 'hr:employee_list' %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back to List
+            </a>
+            {% if perms.hr.change_employee %}
+            <a href="{% url 'hr:employee_edit' employee.pk %}" class="btn btn-primary">
+                <i class="bi bi-pencil me-1"></i> Edit
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Employee Info -->
+        <div class="col-lg-8">
+            <!-- Basic Information Card -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Employee Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-4">
+                            {% if employee.user.profile_picture %}
+                            <img src="{{ employee.user.profile_picture.url }}" alt="{{ employee.full_name }}" 
+                                 class="img-fluid rounded-circle mb-3" style="width: 200px; height: 200px; object-fit: cover;">
+                            {% else %}
+                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center mb-3 mx-auto" 
+                                 style="width: 200px; height: 200px;">
+                                <i class="bi bi-person display-4 text-white"></i>
+                            </div>
+                            {% endif %}
+                            <h5>{{ employee.full_name }}</h5>
+                            <p class="text-muted">{{ employee.get_department_display }}</p>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <p><strong>Employee ID:</strong> <span class="badge bg-info">{{ employee.employee_id }}</span></p>
+                                    <p><strong>Department:</strong> {{ employee.get_department_display }}</p>
+                                    <p><strong>Supervisor:</strong> 
+                                        {% if employee.supervisor %}
+                                        <a href="{% url 'hr:employee_detail' employee.supervisor.pk %}">
+                                            {{ employee.supervisor.full_name }}
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">None</span>
+                                        {% endif %}
+                                    </p>
+                                    <p><strong>Hire Date:</strong> {{ employee.hire_date|date:"d M Y" }}</p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <p><strong>Hourly Rate:</strong> 
+                                        <span class="text-success">Ksh {{ employee.hourly_rate|floatformat:2|intcomma }}</span>
+                                    </p>
+                                    <p><strong>Status:</strong> 
+                                        {% if employee.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </p>
+                                    <p><strong>Email:</strong> {{ employee.email }}</p>
+                                    <p><strong>Phone:</strong> {{ employee.phone_number|default:"-" }}</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Bank Details -->
+                            {% if employee.bank_name %}
+                            <div class="mt-4 pt-3 border-top">
+                                <h6 class="mb-3">Bank Details</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Bank:</strong> {{ employee.bank_name }}</p>
+                                        <p><strong>Account:</strong> {{ employee.bank_account }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Branch:</strong> {{ employee.branch }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Earnings Summary -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Earnings Summary</h6>
+                    <a href="{% url 'hr:worklog_list' %}?employee={{ employee.id }}" class="btn btn-sm btn-outline-primary">
+                        View All Work Logs
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-left-primary h-100">
+                                <div class="card-body">
+                                    <h6 class="text-primary">Total Earnings</h6>
+                                    <h3 class="mb-0">Ksh {{ employee.total_earnings|floatformat:2|intcomma }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-left-warning h-100">
+                                <div class="card-body">
+                                    <h6 class="text-warning">Unpaid</h6>
+                                    <h3 class="mb-0">Ksh {{ employee.unpaid_earnings|floatformat:2|intcomma }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-left-success h-100">
+                                <div class="card-body">
+                                    <h6 class="text-success">Current Month</h6>
+                                    <h3 class="mb-0">Ksh {{ employee.current_month_earnings|floatformat:2|intcomma }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-left-info h-100">
+                                <div class="card-body">
+                                    <h6 class="text-info">Hourly Rate</h6>
+                                    <h3 class="mb-0">Ksh {{ employee.hourly_rate|floatformat:2|intcomma }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Stats and Actions -->
+        <div class="col-lg-4">
+            <!-- Quick Stats -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Quick Stats</h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Total Work Logs
+                            <span class="badge bg-primary rounded-pill">{{ employee.work_logs.count }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Attendance Records
+                            <span class="badge bg-success rounded-pill">{{ employee.attendances.count }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Payroll Records
+                            <span class="badge bg-info rounded-pill">{{ employee.payrolls.count }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Leave Applications
+                            <span class="badge bg-warning rounded-pill">{{ employee.leave_applications.count }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Work Logs -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Work Logs</h6>
+                    <a href="{% url 'hr:worklog_create' %}?employee={{ employee.id }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-plus"></i> Add
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if recent_work_logs %}
+                    <div class="list-group list-group-flush">
+                        {% for log in recent_work_logs %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <strong>{{ log.task_name|truncatechars:20 }}</strong>
+                                <span class="text-success">Ksh {{ log.amount_earned|intcomma }}</span>
+                            </div>
+                            <small class="text-muted d-block">{{ log.date|date:"d M Y" }}</small>
+                            <small class="d-block">
+                                <i class="bi bi-clock"></i> {{ log.hours_worked }} hours
+                                {% if log.is_paid %}
+                                <span class="badge bg-success float-end">Paid</span>
+                                {% else %}
+                                <span class="badge bg-warning float-end">Pending</span>
+                                {% endif %}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3">No work logs yet</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if perms.hr.add_worklog %}
+                        <a href="{% url 'hr:worklog_create' %}?employee={{ employee.id }}" class="btn btn-success">
+                            <i class="bi bi-plus-circle me-1"></i> Add Work Log
+                        </a>
+                        {% endif %}
+                        {% if perms.hr.add_attendance %}
+                        <a href="{% url 'hr:attendance_create' %}?employee={{ employee.id }}" class="btn btn-outline-primary">
+                            <i class="bi bi-calendar-plus me-1"></i> Record Attendance
+                        </a>
+                        {% endif %}
+                        {% if perms.hr.add_payroll %}
+                        <a href="{% url 'hr:payroll_create' %}?employee={{ employee.id }}" class="btn btn-outline-warning">
+                            <i class="bi bi-cash-coin me-1"></i> Create Payroll
+                        </a>
+                        {% endif %}
+                        {% if perms.hr.add_leaveapplication %}
+                        <a href="{% url 'hr:leave_create' %}?employee={{ employee.id }}" class="btn btn-outline-info">
+                            <i class="bi bi-calendar-event me-1"></i> Apply Leave
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Attendance -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Recent Attendance</h6>
+            <a href="{% url 'hr:attendance_list' %}?employee={{ employee.id }}" class="btn btn-sm btn-outline-primary">
+                View All Attendance
+            </a>
+        </div>
+        <div class="card-body">
+            {% if recent_attendance %}
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Hours</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for attendance in recent_attendance %}
+                        <tr>
+                            <td>{{ attendance.date|date:"d M Y" }}</td>
+                            <td>
+                                <span class="badge bg-{% if attendance.status == 'present' %}success{% elif attendance.status == 'absent' %}danger{% else %}warning{% endif %}">
+                                    {{ attendance.get_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ attendance.check_in|time:"H:i"|default:"-" }}</td>
+                            <td>{{ attendance.check_out|time:"H:i"|default:"-" }}</td>
+                            <td>{{ attendance.hours_worked|floatformat:1 }} hrs</td>
+                            <td>{{ attendance.notes|truncatechars:30|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-3">No attendance records yet</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Assigned Tasks -->
+    {% if assigned_tasks %}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Currently Assigned Tasks</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Task</th>
+                            <th>Production Order</th>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Status</th>
+                            <th>Due Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in assigned_tasks %}
+                        <tr>
+                            <td>{{ task.task_name }}</td>
+                            <td>{{ task.production_order.order_number }}</td>
+                            <td>{{ task.production_order.product.name }}</td>
+                            <td>{{ task.quantity }} units</td>
+                            <td>
+                                <span class="badge bg-{% if task.status == 'in_progress' %}primary{% else %}secondary{% endif %}">
+                                    {{ task.get_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ task.production_order.expected_completion_date|date:"d M Y" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

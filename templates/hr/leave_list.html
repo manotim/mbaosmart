@@ -1,0 +1,358 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Leave Applications - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="bi bi-calendar-event text-primary me-2"></i> Leave Applications
+            </h1>
+            <p class="text-muted mb-0">Manage employee leave requests</p>
+        </div>
+        <div>
+            {% if perms.hr.add_leaveapplication %}
+            <a href="{% url 'hr:leave_create' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> Apply for Leave
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-wrap align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Filters</h6>
+            <form method="get" class="d-flex flex-wrap gap-2 mt-2 mt-md-0">
+                <!-- Status Filter -->
+                <select name="status" class="form-select" style="width: 200px;">
+                    <option value="">All Status</option>
+                    {% for status_code, status_name in status_choices %}
+                    <option value="{{ status_code }}" {% if selected_status == status_code %}selected{% endif %}>
+                        {{ status_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                
+                <!-- Employee Filter -->
+                <select name="employee" class="form-select" style="width: 250px;">
+                    <option value="">All Employees</option>
+                    {% for emp in employees %}
+                    <option value="{{ emp.id }}" {% if selected_employee == emp.id|stringformat:"s" %}selected{% endif %}>
+                        {{ emp.full_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                
+                <!-- Date Range -->
+                <div class="input-group" style="width: 220px;">
+                    <span class="input-group-text">From</span>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+                </div>
+                
+                <div class="input-group" style="width: 220px;">
+                    <span class="input-group-text">To</span>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+                </div>
+                
+                <!-- Reset Button -->
+                <a href="{% url 'hr:leave_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
+                </a>
+            </form>
+        </div>
+    </div>
+
+    <!-- Leave Applications Table -->
+    <div class="card shadow">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Leave Applications</h6>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-outline-success" id="approveSelectedBtn">
+                    <i class="bi bi-check-circle me-1"></i> Approve Selected
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="rejectSelectedBtn">
+                    <i class="bi bi-x-circle me-1"></i> Reject Selected
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if leaves %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="30">
+                                <input type="checkbox" id="selectAll">
+                            </th>
+                            <th>Employee</th>
+                            <th>Leave Type</th>
+                            <th>Date Range</th>
+                            <th>Days</th>
+                            <th>Status</th>
+                            <th>Applied On</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for leave in leaves %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" class="leave-checkbox" value="{{ leave.id }}"
+                                       {% if leave.status != 'pending' %}disabled{% endif %}>
+                            </td>
+                            <td>
+                                <a href="{% url 'hr:employee_detail' leave.employee.id %}">
+                                    {{ leave.employee.full_name }}
+                                </a>
+                                <br>
+                                <small class="text-muted">{{ leave.employee.department }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ leave.get_leave_type_display }}</span>
+                            </td>
+                            <td>
+                                {{ leave.start_date|date:"d M Y" }} 
+                                <i class="bi bi-arrow-right mx-1"></i>
+                                {{ leave.end_date|date:"d M Y" }}
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ leave.number_of_days }} days</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if leave.status == 'approved' %}success{% elif leave.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                    {{ leave.get_status_display }}
+                                </span>
+                                {% if leave.approved_by %}
+                                <br>
+                                <small>By: {{ leave.approved_by.get_full_name }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ leave.created_at|date:"d M Y" }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-info view-leave-btn" 
+                                            data-leave-id="{{ leave.id }}" title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    {% if perms.hr.change_leaveapplication and leave.status == 'pending' %}
+                                    <a href="{% url 'hr:leave_edit' leave.pk %}" 
+                                       class="btn btn-outline-secondary" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if perms.hr.change_leaveapplication and leave.status == 'pending' %}
+                                    <button type="button" class="btn btn-outline-success approve-btn" 
+                                            data-leave-id="{{ leave.id }}" title="Approve">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger reject-btn" 
+                                            data-leave-id="{{ leave.id }}" title="Reject">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">
+                            Previous
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">
+                            {{ num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">
+                            Next
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-calendar-x display-1 text-muted"></i>
+                <h4 class="mt-3">No leave applications found</h4>
+                <p class="text-muted">Try adjusting your search or filters</p>
+                {% if perms.hr.add_leaveapplication %}
+                <a href="{% url 'hr:leave_create' %}" class="btn btn-primary mt-2">
+                    <i class="bi bi-plus-circle me-1"></i> Apply for Leave
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Leave Details Modal -->
+<div class="modal fade" id="leaveDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Leave Application Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="leaveDetailsContent">
+                <!-- Content will be loaded via AJAX -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Select All checkbox
+    $('#selectAll').change(function() {
+        $('.leave-checkbox:not(:disabled)').prop('checked', this.checked);
+    });
+    
+    // View Leave Details
+    $('.view-leave-btn').click(function() {
+        const leaveId = $(this).data('leave-id');
+        
+        $.ajax({
+            url: "{% url 'hr:leave_details' 0 %}".replace('0', leaveId),
+            method: 'GET',
+            success: function(data) {
+                $('#leaveDetailsContent').html(data);
+                $('#leaveDetailsModal').modal('show');
+            },
+            error: function() {
+                alert('Error loading leave details');
+            }
+        });
+    });
+    
+    // Approve Individual Leave
+    $('.approve-btn').click(function() {
+        const leaveId = $(this).data('leave-id');
+        approveLeave(leaveId);
+    });
+    
+    // Reject Individual Leave
+    $('.reject-btn').click(function() {
+        const leaveId = $(this).data('leave-id');
+        rejectLeave(leaveId);
+    });
+    
+    // Approve Selected Leaves
+    $('#approveSelectedBtn').click(function() {
+        const selectedIds = [];
+        $('.leave-checkbox:checked').each(function() {
+            selectedIds.push($(this).val());
+        });
+        
+        if (selectedIds.length > 0) {
+            if (confirm(`Approve ${selectedIds.length} selected leave(s)?`)) {
+                approveLeaves(selectedIds);
+            }
+        } else {
+            alert('Please select at least one leave to approve');
+        }
+    });
+    
+    // Reject Selected Leaves
+    $('#rejectSelectedBtn').click(function() {
+        const selectedIds = [];
+        $('.leave-checkbox:checked').each(function() {
+            selectedIds.push($(this).val());
+        });
+        
+        if (selectedIds.length > 0) {
+            if (confirm(`Reject ${selectedIds.length} selected leave(s)?`)) {
+                rejectLeaves(selectedIds);
+            }
+        } else {
+            alert('Please select at least one leave to reject');
+        }
+    });
+    
+    function approveLeave(leaveId) {
+        if (confirm('Approve this leave application?')) {
+            processLeaveAction(leaveId, 'approve');
+        }
+    }
+    
+    function rejectLeave(leaveId) {
+        const reason = prompt('Please enter reason for rejection:');
+        if (reason !== null) {
+            processLeaveAction(leaveId, 'reject', reason);
+        }
+    }
+    
+    function approveLeaves(leaveIds) {
+        processLeaveAction(leaveIds, 'approve');
+    }
+    
+    function rejectLeaves(leaveIds) {
+        const reason = prompt('Please enter reason for rejection (will apply to all selected):');
+        if (reason !== null) {
+            processLeaveAction(leaveIds, 'reject', reason);
+        }
+    }
+    
+    function processLeaveAction(leaveIdOrIds, action, reason = '') {
+        const csrfToken = $('[name=csrfmiddlewaretoken]').val();
+        const isBatch = Array.isArray(leaveIdOrIds);
+        
+        $.ajax({
+            url: "{% url 'hr:leave_process' %}",
+            method: 'POST',
+            data: {
+                'leave_ids': isBatch ? JSON.stringify(leaveIdOrIds) : leaveIdOrIds,
+                'action': action,
+                'reason': reason,
+                'csrfmiddlewaretoken': csrfToken
+            },
+            success: function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + response.error);
+                }
+            },
+            error: function() {
+                alert('An error occurred. Please try again.');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

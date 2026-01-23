@@ -1,0 +1,376 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Products - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="bi bi-chair text-primary me-2"></i> Products
+            </h1>
+            <p class="text-muted mb-0">Manage your product catalog</p>
+        </div>
+        <div>
+            {% if perms.production.add_product %}
+            <a href="{% url 'production:product_create' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> Add New Product
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Products
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_products }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-box-seam fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Active Products
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_products }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Average Profit Margin
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {% with avg_margin=products.avg_profit_margin %}
+                                    {% if avg_margin %}{{ avg_margin|floatformat:1 }}%{% else %}N/A{% endif %}
+                                {% endwith %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-graph-up fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Total Value
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                Ksh {{ total_value|default:0|intcomma }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-currency-dollar fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-wrap align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Filters</h6>
+            <form method="get" class="d-flex flex-wrap gap-2 mt-2 mt-md-0">
+                <!-- Search -->
+                <div class="input-group" style="width: 250px;">
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Search products..." value="{{ search_query }}">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+                
+                <!-- Product Type Filter -->
+                <select name="product_type" class="form-select" style="width: 200px;">
+                    <option value="">All Types</option>
+                    {% for type_code, type_name in product_types %}
+                    <option value="{{ type_code }}" {% if selected_type == type_code %}selected{% endif %}>
+                        {{ type_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                
+                <!-- Status Filter -->
+                <select name="status" class="form-select" style="width: 150px;">
+                    <option value="">All Status</option>
+                    <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+                
+                <!-- Reset Button -->
+                <a href="{% url 'production:product_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
+                </a>
+            </form>
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Product List</h6>
+        </div>
+        <div class="card-body">
+            {% if products %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product</th>
+                            <th>SKU</th>
+                            <th>Type</th>
+                            <th>Selling Price</th>
+                            <th>Production Cost</th>
+                            <th>Profit Margin</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if product.image %}
+                                    <img src="{{ product.image.url }}" alt="{{ product.name }}" 
+                                         class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                                    {% else %}
+                                    <div class="bg-secondary rounded d-flex align-items-center justify-content-center me-3" 
+                                         style="width: 60px; height: 60px;">
+                                        <i class="bi bi-image text-white"></i>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <strong class="d-block">{{ product.name }}</strong>
+                                        <small class="text-muted">{{ product.description|truncatechars:50 }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ product.sku }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ product.get_product_type_display }}</span>
+                            </td>
+                            <td class="text-end">
+                                <strong class="text-success">Ksh {{ product.selling_price|intcomma }}</strong>
+                            </td>
+                            <td class="text-end">
+                                <span class="text-muted">Ksh {{ product.production_cost|intcomma }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="progress flex-grow-1 me-2" style="height: 8px;">
+                                        <div class="progress-bar 
+                                            {% if product.profit_margin > 30 %}bg-success
+                                            {% elif product.profit_margin > 15 %}bg-warning
+                                            {% else %}bg-danger{% endif %}" 
+                                            role="progressbar" 
+                                            style="width: {% if product.profit_margin > 100 %}100{% else %}{{ product.profit_margin }}{% endif %}%">
+                                        </div>
+                                    </div>
+                                    <span class="{% if product.profit_margin > 30 %}text-success
+                                                {% elif product.profit_margin > 15 %}text-warning
+                                                {% else %}text-danger{% endif %}">
+                                        {{ product.profit_margin|floatformat:1 }}%
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                {% if product.is_active %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle me-1"></i> Active
+                                </span>
+                                {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-x-circle me-1"></i> Inactive
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'production:product_detail' product.pk %}" 
+                                       class="btn btn-outline-primary" title="View">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if perms.production.change_product %}
+                                    <a href="{% url 'production:product_edit' product.pk %}" 
+                                       class="btn btn-outline-secondary" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if perms.production.delete_product %}
+                                    <button type="button" class="btn btn-outline-danger" 
+                                            data-bs-toggle="modal" data-bs-target="#deleteModal{{ product.id }}"
+                                            title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Delete Modal -->
+                                <div class="modal fade" id="deleteModal{{ product.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Confirm Delete</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                Are you sure you want to delete <strong>{{ product.name }}</strong>?
+                                                <p class="text-danger mt-2">
+                                                    <i class="bi bi-exclamation-triangle"></i>
+                                                    This action cannot be undone.
+                                                </p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <form method="post" action="{% url 'production:product_delete' product.pk %}">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-danger">Delete Product</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&product_type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">
+                            Previous
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&product_type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">
+                            {{ num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&product_type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">
+                            Next
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-box display-1 text-muted"></i>
+                <h4 class="mt-3">No products found</h4>
+                <p class="text-muted">Try adjusting your search or filters</p>
+                {% if perms.production.add_product %}
+                <a href="{% url 'production:product_create' %}" class="btn btn-primary mt-2">
+                    <i class="bi bi-plus-circle me-1"></i> Add Your First Product
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.progress {
+    background-color: #e9ecef;
+    border-radius: 4px;
+}
+.progress-bar {
+    border-radius: 4px;
+}
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+.badge {
+    font-size: 0.85em;
+    padding: 0.35em 0.65em;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-submit filters on change
+document.querySelectorAll('select[name="product_type"], select[name="status"]').forEach(select => {
+    select.addEventListener('change', function() {
+        this.form.submit();
+    });
+});
+
+// Confirm delete with sweet alert
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteButtons = document.querySelectorAll('[data-bs-target^="#deleteModal"]');
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const modalId = this.getAttribute('data-bs-target');
+            const modal = new bootstrap.Modal(document.querySelector(modalId));
+            modal.show();
+        });
+    });
+});
+</script>
+{% endblock %}

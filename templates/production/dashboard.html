@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Production Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 mb-0">Production Dashboard</h1>
+            <p class="text-muted">Overview of production operations</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'production:production_order_create' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> New Production Order
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Orders
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_orders|intcomma }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-clipboard-data fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                In Progress
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ in_progress|intcomma }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-gear fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Completed Today
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ completed_today|intcomma }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Pending Orders
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ pending_orders|intcomma }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-clock-history fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Efficiency and Recent Orders -->
+    <div class="row">
+        <!-- Efficiency Card -->
+        <div class="col-xl-6 col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Weekly Production Efficiency</h6>
+                </div>
+                <div class="card-body">
+                    <h4 class="small font-weight-bold">{{ efficiency|floatformat:1 }}% <span class="float-right">100%</span></h4>
+                    <div class="progress mb-4">
+                        <div class="progress-bar bg-{% if efficiency >= 80 %}success{% elif efficiency >= 60 %}warning{% else %}danger{% endif %}" 
+                             role="progressbar" 
+                             style="width: {{ efficiency|default:0 }}%"
+                             aria-valuenow="{{ efficiency|default:0 }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100"></div>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-muted">
+                            Completed this week: {{ completed_this_week|default:0 }}<br>
+                            Planned this week: {{ planned_this_week|default:0 }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Orders -->
+        <div class="col-xl-6 col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Production Orders</h6>
+                    <a href="{% url 'production:production_order_list' %}" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Order #</th>
+                                    <th>Product</th>
+                                    <th>Qty</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in recent_orders %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'production:production_order_detail' order.pk %}">
+                                            {{ order.order_number|truncatechars:8 }}
+                                        </a>
+                                    </td>
+                                    <td>{{ order.product.name }}</td>
+                                    <td>{{ order.quantity }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if order.status == 'completed' %}success{% elif order.status == 'in_progress' %}warning{% else %}secondary{% endif %}">
+                                            {{ order.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ order.created_at|date:"M d, H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No recent orders</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tasks by Status -->
+    <div class="row">
+        <div class="col-xl-12 col-lg-12 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Tasks by Status</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for task_status in tasks_by_status %}
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-left-{% if task_status.status == 'completed' %}success{% elif task_status.status == 'in_progress' %}warning{% else %}secondary{% endif %} h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title text-uppercase">{{ task_status.status|title }}</h6>
+                                    <h2 class="display-6">{{ task_status.count }}</h2>
+                                    <p class="card-text text-muted">tasks</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center text-muted">
+                            No tasks found
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

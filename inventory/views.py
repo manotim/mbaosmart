@@ -137,7 +137,7 @@ class RawMaterialCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
     form_class = RawMaterialForm
     template_name = 'inventory/raw_material_form.html'
     permission_required = 'inventory.add_rawmaterial'
-    success_url = reverse_lazy('accounts:raw_material_list')
+    success_url = reverse_lazy('inventory:raw_material_list')
     
     def form_valid(self, form):
         form.instance.created_by = self.request.user

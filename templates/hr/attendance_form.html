@@ -1,0 +1,83 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if object %}Edit Attendance{% else %}Record Attendance{% endif %} - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-calendar-check me-1"></i> 
+                        {% if object %}Edit Attendance{% else %}Record Attendance{% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.employee|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.date|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.check_in|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.check_out|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.status|as_crispy_field }}
+                            </div>
+                            <div class="col-md-12">
+                                {{ form.notes|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> 
+                                {% if object %}Update Attendance{% else %}Record Attendance{% endif %}
+                            </button>
+                            <a href="{% url 'hr:attendance_list' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle me-1"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Help Information -->
+            <div class="card shadow mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">
+                        <i class="bi bi-info-circle me-1"></i> Attendance Guidelines
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li><strong>Present:</strong> Employee worked full day</li>
+                        <li><strong>Absent:</strong> Employee did not report to work</li>
+                        <li><strong>Late:</strong> Employee reported late (after official reporting time)</li>
+                        <li><strong>Leave:</strong> Employee is on approved leave</li>
+                        <li><strong>Half Day:</strong> Employee worked half day</li>
+                        <li><strong>Off Duty:</strong> Employee's scheduled day off</li>
+                        <li>Hours are automatically calculated when both check-in and check-out times are provided</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

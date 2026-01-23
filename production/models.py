@@ -1,3 +1,4 @@
+# production/models.py
 from django.db import models
 
 from django.core.validators import MinValueValidator
@@ -39,7 +40,7 @@ class Product(models.Model):
     
     def get_absolute_url(self):
         from django.urls import reverse
-        return reverse('accounts:product_detail', args=[str(self.id)])
+        return reverse('production:product_detail', args=[str(self.id)])
     
     def save(self, *args, **kwargs):
         if not self.sku:
@@ -342,61 +343,170 @@ class ProductionTask(models.Model):
     def labour_cost(self):
         return self.labour_task.labour_cost * self.quantity
     
-    def assign_to_worker(self, user):
+    def assign_to_worker(self, worker_user):
         """Assign task to a worker"""
-        self.assigned_to = user
+        if worker_user.role != 'fundi':
+            return False, "User is not a fundi/worker"
+        
+        if self.status not in ['pending', 'assigned']:
+            return False, f"Task is already {self.get_status_display()}"
+        
+        self.assigned_to = worker_user
         self.status = 'assigned'
-        self.start_date = timezone.now()
+        if not self.start_date:
+            self.start_date = timezone.now()
         self.save()
         
         # Send notification to worker
         # TODO: Implement notification system
+        
+        return True, "Task assigned successfully"
     
-    def start_task(self):
+    def start_work(self, worker_user):
         """Worker starts working on the task"""
-        if self.status in ['assigned', 'pending']:
-            self.status = 'in_progress'
-            if not self.start_date:
-                self.start_date = timezone.now()
-            self.save()
+        if self.assigned_to != worker_user:
+            return False, "Task not assigned to you"
+        
+        if self.status not in ['assigned', 'pending']:
+            return False, f"Task is {self.get_status_display()}, cannot start"
+        
+        if not self.can_start():
+            return False, "Previous tasks are not completed"
+        
+        self.status = 'in_progress'
+        if not self.start_date:
+            self.start_date = timezone.now()
+        self.save()
+        
+        return True, "Task started successfully"
     
-    def complete_task(self, user):
+    def mark_complete(self, worker_user):
         """Worker marks task as complete"""
-        if self.status == 'in_progress':
-            self.status = 'completed'
-            self.completed_date = timezone.now()
-            self.save()
-            
-            # Create work log for payment
-            from hr.models import WorkLog
-            WorkLog.objects.create(
-                employee=user.employee,
-                production_task=self,
-                hours_worked=self.labour_task.estimated_hours * self.quantity,
-                date=timezone.now().date(),
-                amount_earned=self.labour_cost
-            )
+        if self.assigned_to != worker_user:
+            return False, "Task not assigned to you"
+        
+        if self.status != 'in_progress':
+            return False, f"Task is {self.get_status_display()}, cannot complete"
+        
+        self.status = 'completed'
+        self.completed_date = timezone.now()
+        self.save()
+        
+        return True, "Task marked as complete"
     
-    def verify_task(self, user):
+    def verify_completion(self, supervisor_user):
         """Supervisor verifies completed task"""
-        if self.status == 'completed':
-            self.status = 'verified'
-            self.verified_by = user
-            self.verified_at = timezone.now()
-            self.save()
+        if self.status != 'completed':
+            return False, "Task is not completed"
+        
+        # Check if user has permission to verify
+        if supervisor_user.role not in ['supervisor', 'production_manager', 'owner']:
+            return False, "You don't have permission to verify tasks"
+        
+        self.status = 'verified'
+        self.verified_by = supervisor_user
+        self.verified_at = timezone.now()
+        self.save()
+        
+        # Create work log for payment (handle via signal or separate view)
+        self._create_work_log()
+        
+        # Check if all tasks are completed to auto-complete production order
+        incomplete_tasks = self.production_order.tasks.exclude(status='verified')
+        if not incomplete_tasks.exists():
+            self.production_order.complete_production()
+        
+        return True, "Task verified successfully"
+    
+    def _create_work_log(self):
+        """Create work log for this task (called after verification)"""
+        try:
+            # Import inside method to avoid circular imports
+            from hr.models import WorkLog
             
-            # Check if all tasks are completed to auto-complete production order
-            incomplete_tasks = self.production_order.tasks.exclude(status='verified')
-            if not incomplete_tasks.exists():
-                self.production_order.complete_production()
+            # Check if user has employee record
+            if not hasattr(self.assigned_to, 'employee'):
+                print(f"No employee record for user {self.assigned_to.username}")
+                return False
+            
+            # Check if work log already exists for this task
+            if WorkLog.objects.filter(production_task=self).exists():
+                print(f"Work log already exists for task {self.id}")
+                return False
+            
+            # Create work log
+            WorkLog.objects.create(
+                employee=self.assigned_to.employee,
+                production_task=self,
+                date=self.completed_date.date() if self.completed_date else timezone.now().date(),
+                hours_worked=self.labour_task.estimated_hours * self.quantity,
+                amount_earned=self.labour_cost,
+                task_description=f"{self.task_name} - {self.production_order.order_number}",
+                notes=f"Verified by {self.verified_by.get_full_name() if self.verified_by else 'Supervisor'}"
+            )
+            
+            return True
+            
+        except ImportError:
+            print("HR app not available for work log creation")
+            return False
+        except Exception as e:
+            print(f"Error creating work log: {e}")
+            return False
     
     def can_start(self):
         """Check if task can be started (previous tasks are completed)"""
+        # If no sequence or first task, can start
+        if self.sequence <= 1:
+            return True
+        
         previous_tasks = ProductionTask.objects.filter(
             production_order=self.production_order,
             sequence__lt=self.sequence
-        )
+        ).exclude(id=self.id)
+        
+        if not previous_tasks.exists():
+            return True
+        
+        # Check if all previous tasks are verified
         return all(task.status == 'verified' for task in previous_tasks)
+    
+    def get_status_color(self):
+        """Return Bootstrap color class for status"""
+        status_colors = {
+            'pending': 'secondary',
+            'assigned': 'info',
+            'in_progress': 'primary',
+            'completed': 'warning',
+            'verified': 'success',
+            'cancelled': 'danger',
+        }
+        return status_colors.get(self.status, 'secondary')
+    
+    @property
+    def is_assigned(self):
+        return self.assigned_to is not None
+    
+    @property
+    def is_completed(self):
+        return self.status == 'completed'
+    
+    @property
+    def is_verified(self):
+        return self.status == 'verified'
+    
+    @property
+    def worker_name(self):
+        return self.assigned_to.get_full_name() if self.assigned_to else "Not assigned"
+    
+    @property
+    def production_order_number(self):
+        return self.production_order.order_number
+    
+    @property
+    def product_name(self):
+        return self.production_order.product.name
+      
 
 class WorkStation(models.Model):
     name = models.CharField(max_length=100)

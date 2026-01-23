@@ -1,0 +1,125 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if object %}Edit Payroll{% else %}Create Payroll{% endif %} - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-cash-stack me-1"></i> 
+                        {% if object %}Edit Payroll{% else %}Create Payroll{% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.employee|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.month|as_crispy_field }}
+                                <small class="text-muted">Select month for payroll (e.g., 2024-01 for January 2024)</small>
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <h6 class="mb-3">Salary Components</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.basic_salary|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.overtime|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.allowances|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.deductions|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <h6 class="mb-3">Payment Information</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.status|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.payment_method|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.payment_date|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.transaction_id|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                {{ form.notes|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <!-- Calculated Net Salary (Readonly) -->
+                        <div class="alert alert-info mt-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong>Net Salary:</strong>
+                                <span id="netSalary" class="h4 mb-0">Ksh 0.00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> 
+                                {% if object %}Update Payroll{% else %}Create Payroll{% endif %}
+                            </button>
+                            <a href="{% url 'hr:payroll_list' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle me-1"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Calculate net salary on input change
+    function calculateNetSalary() {
+        const basic = parseFloat($('#id_basic_salary').val()) || 0;
+        const overtime = parseFloat($('#id_overtime').val()) || 0;
+        const allowances = parseFloat($('#id_allowances').val()) || 0;
+        const deductions = parseFloat($('#id_deductions').val()) || 0;
+        
+        const netSalary = basic + overtime + allowances - deductions;
+        $('#netSalary').text('Ksh ' + netSalary.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+    }
+    
+    // Attach event listeners
+    $('#id_basic_salary, #id_overtime, #id_allowances, #id_deductions').on('input', calculateNetSalary);
+    
+    // Calculate on page load
+    calculateNetSalary();
+});
+</script>
+{% endblock %}

@@ -5,7 +5,9 @@ from django.contrib import messages
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.db.models import Sum, Count, Q, F
+from django.views.decorators.http import require_POST
 from django.http import JsonResponse, HttpResponse
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.forms import modelformset_factory
 import json
@@ -14,6 +16,7 @@ from .models import Product, ProductFormula, LabourTask, ProductionOrder, Produc
 from .forms import (ProductForm, ProductionOrderForm, ProductionTaskAssignmentForm, 
                    WorkStationForm, ProductFormulaForm, LabourTaskForm)
 from inventory.models import RawMaterial
+from accounts.models import *
 
 # Product Views
 class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -62,12 +65,13 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         
         return context
 
+
 class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = Product
     form_class = ProductForm
     template_name = 'production/product_form.html'
     permission_required = 'production.add_product'
-    success_url = reverse_lazy('accounts:product_list')
+    success_url = reverse_lazy('production:product_list')
     
     def form_valid(self, form):
         messages.success(self.request, 'Product created successfully!')
@@ -363,56 +367,6 @@ def worker_dashboard(request):
     
     return render(request, 'production/worker_dashboard.html', context)
 
-@login_required
-def assign_task(request, task_id):
-    """Assign a task to a worker"""
-    if not request.user.has_perm('production.change_productiontask'):
-        messages.error(request, 'You do not have permission to assign tasks.')
-        return redirect('accounts:worker_dashboard')
-    
-    task = get_object_or_404(ProductionTask, id=task_id)
-    
-    if request.method == 'POST':
-        form = ProductionTaskAssignmentForm(request.POST, instance=task)
-        if form.is_valid():
-            task = form.save(commit=False)
-            task.status = 'assigned'
-            task.save()
-            
-            messages.success(request, f'Task assigned to {task.assigned_to.get_full_name()}')
-            return redirect('accounts:production_order_detail', pk=task.production_order.id)
-    else:
-        form = ProductionTaskAssignmentForm(instance=task)
-        # Filter to only show workers
-        from django.contrib.auth.models import Group
-        worker_group = Group.objects.get(name='Worker')
-        form.fields['assigned_to'].queryset = worker_group.user_set.all()
-    
-    return render(request, 'production/task_assign_form.html', {
-        'form': form,
-        'task': task,
-        'title': 'Assign Task'
-    })
-
-@login_required
-def start_task(request, task_id):
-    """Worker starts working on a task"""
-    task = get_object_or_404(ProductionTask, id=task_id)
-    
-    # Check if user is assigned to this task
-    if task.assigned_to != request.user and not request.user.has_perm('production.change_productiontask'):
-        messages.error(request, 'You are not assigned to this task.')
-        return redirect('accounts:worker_dashboard')
-    
-    # Check if task can be started
-    if not task.can_start():
-        messages.error(request, 'Previous tasks must be completed before starting this task.')
-        return redirect('accounts:worker_dashboard')
-    
-    task.start_task()
-    messages.success(request, 'Task started successfully!')
-    
-    return redirect('accounts:worker_dashboard')
 
 @login_required
 def complete_task(request, task_id):
@@ -534,10 +488,13 @@ def production_dashboard(request):
         'recent_orders': recent_orders,
         'tasks_by_status': tasks_by_status,
         'efficiency': efficiency,
+        'completed_this_week': completed_this_week,
+        'planned_this_week': planned_this_week,      
         'title': 'Production Dashboard'
     }
     
     return render(request, 'production/dashboard.html', context)
+
 
 # API Views
 @login_required
@@ -597,3 +554,101 @@ def production_chart_data(request):
     }
     
     return JsonResponse(data)
+
+
+@login_required
+@permission_required('production.change_productiontask')
+def assign_task_to_worker(request, task_id):
+    """Supervisor assigns a task to a worker"""
+    task = get_object_or_404(ProductionTask, id=task_id)
+    
+    if request.method == 'POST':
+        worker_id = request.POST.get('worker_id')
+        worker = get_object_or_404(get_user_model(), id=worker_id, role='fundi')
+        
+        task.assigned_to = worker
+        task.status = 'assigned'
+        task.save()
+        
+        messages.success(request, f'Task assigned to {worker.get_full_name()}!')
+        return redirect('production:production_order_detail', pk=task.production_order.id)
+    
+    # Get all fundis
+    workers = get_user_model().objects.filter(role='fundi', is_active=True)
+    
+    return render(request, 'production/assign_task.html', {
+        'task': task,
+        'workers': workers,
+    })
+
+
+
+@login_required
+@permission_required('production.change_productiontask')
+def assign_task_view(request, task_id):
+    """View to assign a task to a worker"""
+    task = get_object_or_404(ProductionTask, id=task_id)
+    
+    if request.method == 'POST':
+        worker_id = request.POST.get('worker_id')
+        worker = get_object_or_404(User, id=worker_id, role='fundi', is_active=True)
+        
+        success, message = task.assign_to_worker(worker)
+        if success:
+            messages.success(request, f'Task assigned to {worker.get_full_name()}')
+        else:
+            messages.error(request, message)
+        
+        return redirect('production:production_order_detail', pk=task.production_order.id)
+    
+    # Get all active fundis
+    workers = User.objects.filter(role='fundi', is_active=True)
+    
+    return render(request, 'production/assign_task.html', {
+        'task': task,
+        'workers': workers,
+    })
+
+@login_required
+@require_POST
+def start_task_view(request):
+    """Worker starts a task (AJAX)"""
+    task_id = request.POST.get('task_id')
+    task = get_object_or_404(ProductionTask, id=task_id, assigned_to=request.user)
+    
+    success, message = task.start_work(request.user)
+    if success:
+        messages.success(request, message)
+        return JsonResponse({'success': True, 'message': message})
+    
+    return JsonResponse({'success': False, 'error': message})
+
+@login_required
+@require_POST
+def complete_task_view(request):
+    """Worker marks task as complete (AJAX)"""
+    task_id = request.POST.get('task_id')
+    task = get_object_or_404(ProductionTask, id=task_id, assigned_to=request.user)
+    
+    success, message = task.mark_complete(request.user)
+    if success:
+        messages.success(request, message)
+        return JsonResponse({'success': True, 'message': message})
+    
+    return JsonResponse({'success': False, 'error': message})
+
+@login_required
+@permission_required('production.change_productiontask')
+@require_POST
+def verify_task_view(request):
+    """Supervisor verifies a task (AJAX)"""
+    task_id = request.POST.get('task_id')
+    task = get_object_or_404(ProductionTask, id=task_id)
+    
+    success, message = task.verify_completion(request.user)
+    if success:
+        messages.success(request, message)
+        return JsonResponse({'success': True, 'message': message})
+    
+    return JsonResponse({'success': False, 'error': message})
+

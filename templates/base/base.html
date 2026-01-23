@@ -137,13 +137,13 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.app_name == 'procurement' and 'supplier' in request.path %}active{% endif %}" 
-                               href="{% url 'accounts:supplier_list' %}">
+                               href="{% url 'procurement:supplier_list' %}">
                                 <i class="bi bi-truck"></i> Suppliers
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.app_name == 'procurement' and 'purchase-order' in request.path %}active{% endif %}" 
-                               href="{% url 'accounts:purchase_order_list' %}">
+                               href="{% url 'procurement:purchase_order_list' %}">
                                 <i class="bi bi-file-text"></i> Purchase Orders
                             </a>
                         </li>
@@ -155,7 +155,7 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.app_name == 'inventory' %}active{% endif %}" 
-                               href="{% url 'accounts:raw_material_list' %}">
+                               href="{% url 'inventory:raw_material_list' %}">
                                 <i class="bi bi-box"></i> Raw Materials
                             </a>
                         </li>
@@ -167,13 +167,13 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.app_name == 'production' and 'product' in request.path %}active{% endif %}" 
-                               href="{% url 'accounts:product_list' %}">
+                               href="{% url 'production:product_list' %}">
                                 <i class="bi bi-chair"></i> Products
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.app_name == 'production' and 'production-order' in request.path %}active{% endif %}" 
-                               href="{% url 'accounts:production_order_list' %}">
+                               href="{% url 'production:production_order_list' %}">
                                 <i class="bi bi-gear"></i> Production Orders
                             </a>
                         </li>
@@ -182,18 +182,6 @@
                         {% if perms.sales.view_shop or perms.sales.view_sale %}
                         <li class="nav-item">
                             <span class="text-muted px-3 small">SALES & SHOPS</span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'sales' and 'shop' in request.path %}active{% endif %}" 
-                               href="{% url 'accounts:shop_list' %}">
-                                <i class="bi bi-shop"></i> Shops
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'sales' and 'sale' in request.path %}active{% endif %}" 
-                               href="{% url 'accounts:sales_list' %}">
-                                <i class="bi bi-cart-check"></i> Sales
-                            </a>
                         </li>
                         {% endif %}
                         
@@ -208,7 +196,96 @@
                             </a>
                         </li>
                         {% endif %}
-                        
+
+                        <!-- In base/base.html navigation -->
+                        {% if perms.hr.view_employee or perms.hr.view_worklog or perms.hr.view_attendance %}
+                        <li class="nav-item">
+                            <span class="text-muted px-3 small">HR MANAGEMENT</span>
+                        </li>
+                        {% if perms.hr.view_employee %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' and 'employee' in request.path %}active{% endif %}" 
+                            href="{% url 'hr:employee_list' %}">
+                                <i class="bi bi-people"></i> Employees
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.hr.view_worklog %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' and 'work-log' in request.path %}active{% endif %}" 
+                            href="{% url 'hr:worklog_list' %}">
+                                <i class="bi bi-clock-history"></i> Work Logs
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.hr.view_attendance %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' and 'attendance' in request.path %}active{% endif %}" 
+                            href="{% url 'hr:attendance_list' %}">
+                                <i class="bi bi-calendar-check"></i> Attendance
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.hr.view_payroll %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' and 'payroll' in request.path %}active{% endif %}" 
+                            href="{% url 'hr:payroll_list' %}">
+                                <i class="bi bi-cash-stack"></i> Payroll
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.hr.view_leaveapplication %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' and 'leave' in request.path %}active{% endif %}" 
+                            href="{% url 'hr:leave_list' %}">
+                                <i class="bi bi-calendar-event"></i> Leave Applications
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% endif %}
+
+                        <!-- For Fundi users (Task Dashboard) -->
+                        {% if request.user.role == 'fundi' and perms.hr.view_worklog %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' and 'task-dashboard' in request.path %}active{% endif %}" 
+                            href="{% url 'hr:task_dashboard' %}">
+                                <i class="bi bi-tools"></i> My Tasks
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.production.view_productionorder %}
+                        <li class="nav-item">
+                            <span class="text-muted px-3 small">PRODUCTION</span>
+                        </li>
+
+                        <!-- Dashboard link - ONLY for Supervisor users -->
+                        {% if request.user.role == 'supervisor' or request.user.groups.filter.name == 'Supervisor'|lower %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
+                            href="{% url 'production:dashboard' %}">
+                                <i class="bi bi-speedometer2"></i> Dashboard
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        <!-- Products link - Available for all with permission -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'production' and 'product' in request.path %}active{% endif %}" 
+                            href="{% url 'production:product_list' %}">
+                                <i class="bi bi-chair"></i> Products
+                            </a>
+                        </li>
+
+                        <!-- Production Orders link - Available for all with permission -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.app_name == 'production' and 'production-order' in request.path %}active{% endif %}" 
+                            href="{% url 'production:production_order_list' %}">
+                                <i class="bi bi-gear"></i> Production Orders
+                            </a>
+                        </li>
+
+                        <!-- Other production links -->
+                        {% endif %}
                         <li class="nav-item mt-4">
                             <div class="px-3">
                                 <small class="text-muted">Logged in as:</small>

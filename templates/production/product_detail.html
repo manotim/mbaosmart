@@ -71,15 +71,15 @@
             <div class="card-footer">
                 <div class="btn-group">
                     {% if perms.production.add_productionorder %}
-                    <a href="{% url 'accounts:production_order_create' %}?product={{ product.id }}" class="btn btn-primary">
+                    <a href="{% url 'production:production_order_create' %}?product={{ product.id }}" class="btn btn-primary">
                         <i class="bi bi-gear"></i> Create Production Order
                     </a>
                     {% endif %}
                     {% if perms.production.change_product %}
-                    <a href="{% url 'accounts:edit_product_formula' product.id %}" class="btn btn-warning">
+                    <a href="{% url 'production:edit_product_formula' product.id %}" class="btn btn-warning">
                         <i class="bi bi-clipboard-data"></i> Edit Formula
                     </a>
-                    <a href="{% url 'accounts:edit_labour_tasks' product.id %}" class="btn btn-info">
+                    <a href="{% url 'procution:edit_labour_tasks' product.id %}" class="btn btn-info">
                         <i class="bi bi-people"></i> Edit Labour Tasks
                     </a>
                     {% endif %}
@@ -109,7 +109,7 @@
                                     {% for formula in formulas %}
                                     <tr>
                                         <td>
-                                            <a href="{% url 'accounts:raw_material_detail' formula.raw_material.id %}">
+                                            <a href="{% url 'inventory:raw_material_detail' formula.raw_material.id %}">
                                                 {{ formula.raw_material.name }}
                                             </a>
                                         </td>
@@ -132,7 +132,7 @@
                             <i class="bi bi-clipboard-x display-4"></i>
                             <p class="mt-2">No material formula defined</p>
                             {% if perms.production.change_product %}
-                            <a href="{% url 'accounts:edit_product_formula' product.id %}" class="btn btn-sm btn-primary">
+                            <a href="{% url 'production:edit_product_formula' product.id %}" class="btn btn-sm btn-primary">
                                 Add Formula
                             </a>
                             {% endif %}
@@ -184,7 +184,7 @@
                             <i class="bi bi-people display-4"></i>
                             <p class="mt-2">No labour tasks defined</p>
                             {% if perms.production.change_product %}
-                            <a href="{% url 'accounts:edit_labour_tasks' product.id %}" class="btn btn-sm btn-primary">
+                            <a href="{% url 'production:edit_labour_tasks' product.id %}" class="btn btn-sm btn-primary">
                                 Add Tasks
                             </a>
                             {% endif %}
@@ -269,7 +269,7 @@
                 {% if orders %}
                 <div class="list-group list-group-flush">
                     {% for order in orders %}
-                    <a href="{% url 'accounts:production_order_detail' order.id %}" 
+                    <a href="{% url 'production:production_order_detail' order.id %}" 
                        class="list-group-item list-group-item-action">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">{{ order.order_number }}</h6>
@@ -284,7 +284,7 @@
                     </a>
                     {% endfor %}
                 </div>
-                <a href="{% url 'accounts:production_order_list' %}?product={{ product.id }}" 
+                <a href="{% url 'production:production_order_list' %}?product={{ product.id }}" 
                    class="btn btn-sm btn-outline-primary w-100 mt-2">
                     View All Orders
                 </a>
@@ -293,7 +293,7 @@
                     <i class="bi bi-gear display-4"></i>
                     <p class="mt-2">No production orders yet</p>
                     {% if perms.production.add_productionorder %}
-                    <a href="{% url 'accounts:production_order_create' %}?product={{ product.id }}" 
+                    <a href="{% url 'production:production_order_create' %}?product={{ product.id }}" 
                        class="btn btn-sm btn-primary">
                         Create First Order
                     </a>

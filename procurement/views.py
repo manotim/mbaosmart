@@ -1,3 +1,4 @@
+# procurement/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
@@ -32,12 +33,13 @@ class SupplierListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             )
         return queryset
 
+
 class SupplierCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = Supplier
     form_class = SupplierForm
     template_name = 'procurement/supplier_form.html'
     permission_required = 'procurement.add_supplier'
-    success_url = reverse_lazy('accounts:supplier_list')
+    success_url = reverse_lazy('procurement:supplier_list')
     
     def form_valid(self, form):
         messages.success(self.request, 'Supplier created successfully!')
@@ -48,7 +50,7 @@ class SupplierUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView
     form_class = SupplierForm
     template_name = 'procurement/supplier_form.html'
     permission_required = 'procurement.change_supplier'
-    success_url = reverse_lazy('accounts:supplier_list')
+    success_url = reverse_lazy('procurement:supplier_list')
     
     def form_valid(self, form):
         messages.success(self.request, 'Supplier updated successfully!')
@@ -58,11 +60,12 @@ class SupplierDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView
     model = Supplier
     template_name = 'procurement/supplier_confirm_delete.html'
     permission_required = 'procurement.delete_supplier'
-    success_url = reverse_lazy('accounts:supplier_list')
+    success_url = reverse_lazy('procurement:supplier_list')
     
     def delete(self, request, *args, **kwargs):
         messages.success(request, 'Supplier deleted successfully!')
         return super().delete(request, *args, **kwargs)
+
 
 # Purchase Order Views
 class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):

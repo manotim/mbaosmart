@@ -1,0 +1,129 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if object %}Edit Leave Application{% else %}Apply for Leave{% endif %} - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-calendar-event me-1"></i> 
+                        {% if object %}Edit Leave Application{% else %}Apply for Leave{% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.employee|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.leave_type|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.start_date|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.end_date|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                {{ form.reason|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                {{ form.notes|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <!-- Days Calculation -->
+                        <div class="alert alert-info mt-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong>Total Leave Days:</strong>
+                                <span id="totalDays" class="h4 mb-0">0 days</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> 
+                                {% if object %}Update Leave{% else %}Submit Leave Application{% endif %}
+                            </button>
+                            <a href="{% url 'hr:leave_list' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle me-1"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Help Information -->
+            <div class="card shadow mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">
+                        <i class="bi bi-info-circle me-1"></i> Leave Types Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li><strong>Annual Leave:</strong> Paid annual vacation leave</li>
+                        <li><strong>Sick Leave:</strong> For illness with medical certificate</li>
+                        <li><strong>Maternity Leave:</strong> 3 months for female employees</li>
+                        <li><strong>Paternity Leave:</strong> 2 weeks for male employees</li>
+                        <li><strong>Compassionate Leave:</strong> Bereavement or family emergency</li>
+                        <li><strong>Study Leave:</strong> For approved study purposes</li>
+                        <li><strong>Unpaid Leave:</strong> Leave without pay</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Calculate days between start and end dates
+    function calculateDays() {
+        const startDate = $('#id_start_date').val();
+        const endDate = $('#id_end_date').val();
+        
+        if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            // Calculate difference in days
+            const timeDiff = end.getTime() - start.getTime();
+            const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1; // +1 to include both start and end
+            
+            if (daysDiff >= 0) {
+                $('#totalDays').text(daysDiff + ' day' + (daysDiff !== 1 ? 's' : ''));
+            } else {
+                $('#totalDays').text('Invalid date range');
+            }
+        } else {
+            $('#totalDays').text('Select dates to calculate');
+        }
+    }
+    
+    // Attach event listeners
+    $('#id_start_date, #id_end_date').on('change', calculateDays);
+    
+    // Calculate on page load if dates are already set
+    calculateDays();
+});
+</script>
+{% endblock %}

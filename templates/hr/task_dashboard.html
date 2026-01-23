@@ -1,0 +1,561 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}My Tasks - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Dashboard Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="bi bi-tools text-primary me-2"></i> My Task Dashboard
+            </h1>
+            <p class="text-muted mb-0">Welcome, {{ request.user.get_full_name|default:request.user.username }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <div class="card border-left-primary shadow h-100 py-2 px-3">
+                <div class="d-flex align-items-center">
+                    <div class="me-3">
+                        <i class="bi bi-cash-coin text-primary fa-2x"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Earnings
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            Ksh {{ total_earnings|default:0|intcomma }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card border-left-warning shadow h-100 py-2 px-3">
+                <div class="d-flex align-items-center">
+                    <div class="me-3">
+                        <i class="bi bi-hourglass-split text-warning fa-2x"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Unpaid
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            Ksh {{ unpaid_earnings|default:0|intcomma }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assigned Tasks -->
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Assigned Tasks Card -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-list-task me-1"></i> Assigned Tasks
+                    </h6>
+                    <span class="badge bg-primary">{{ assigned_tasks.count|default:0 }} tasks</span>
+                </div>
+                <div class="card-body">
+                    {% if assigned_tasks %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Task</th>
+                                    <th>Production Order</th>
+                                    <th>Product</th>
+                                    <th>Quantity</th>
+                                    <th>Status</th>
+                                    <th>Progress</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in assigned_tasks %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ task.task_name }}</strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            {{ task.description|truncatechars:50 }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if task.production_order %}
+                                        <a href="{% url 'production:production_order_detail' task.production_order.id %}" 
+                                           class="badge bg-info text-decoration-none">
+                                            {{ task.production_order.order_number }}
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if task.production_order and task.production_order.product %}
+                                        {{ task.production_order.product.name }}
+                                        {% else %}
+                                        <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ task.quantity|default:0 }} units</td>
+                                    <td>
+                                        <span class="badge bg-{% if task.status == 'completed' %}success{% elif task.status == 'in_progress' %}warning{% else %}secondary{% endif %}">
+                                            {{ task.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 10px;">
+                                            <div class="progress-bar" role="progressbar" 
+                                                 style="width: {{ task.progress|default:0 }}%;" 
+                                                 aria-valuenow="{{ task.progress|default:0 }}" 
+                                                 aria-valuemin="0" aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">{{ task.progress|default:0 }}%</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            {% if task.status == 'assigned' or task.status == 'pending' %}
+                                            <form method="post" action="{% url 'hr:task_start' task.id %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-outline-primary">
+                                                    <i class="bi bi-play-circle"></i> Start
+                                                </button>
+                                            </form>
+                                            {% elif task.status == 'in_progress' %}
+                                            <form method="post" action="{% url 'hr:task_complete' task.id %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-outline-success">
+                                                    <i class="bi bi-check-circle"></i> Complete
+                                                </button>
+                                            </form>
+                                            
+                                            <!-- Progress Update Form -->
+                                            <form method="post" action="{% url 'hr:task_update' task.id %}" class="d-inline ms-1">
+                                                {% csrf_token %}
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" name="progress" 
+                                                           class="form-control form-control-sm" 
+                                                           style="width: 70px;" 
+                                                           min="0" max="100" 
+                                                           value="{{ task.progress|default:0 }}">
+                                                    <button type="submit" class="btn btn-outline-info">
+                                                        <i class="bi bi-arrow-up"></i>
+                                                    </button>
+                                                </div>
+                                            </form>
+                                            {% endif %}
+                                            
+                                            <button type="button" class="btn btn-outline-info" 
+                                               data-bs-toggle="modal" data-bs-target="#taskModal{{ task.id }}">
+                                                <i class="bi bi-info-circle"></i>
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- Task Details Modal -->
+                                        <div class="modal fade" id="taskModal{{ task.id }}" tabindex="-1">
+                                            <div class="modal-dialog modal-lg">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Task Details</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div class="row">
+                                                            <div class="col-md-6">
+                                                                <h6>{{ task.task_name }}</h6>
+                                                                <p class="text-muted">{{ task.description|default:"No description" }}</p>
+                                                                <hr>
+                                                                <p><strong>Status:</strong> 
+                                                                    <span class="badge bg-{% if task.status == 'completed' %}success{% elif task.status == 'in_progress' %}warning{% else %}secondary{% endif %}">
+                                                                        {{ task.get_status_display }}
+                                                                    </span>
+                                                                </p>
+                                                                <p><strong>Priority:</strong> {{ task.get_priority_display }}</p>
+                                                                <p><strong>Assigned On:</strong> {{ task.created_at|date:"d M Y H:i" }}</p>
+                                                                {% if task.start_date %}
+                                                                <p><strong>Started On:</strong> {{ task.start_date|date:"d M Y H:i" }}</p>
+                                                                {% endif %}
+                                                                {% if task.completed_date %}
+                                                                <p><strong>Completed On:</strong> {{ task.completed_date|date:"d M Y H:i" }}</p>
+                                                                {% endif %}
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <h6>Task Information</h6>
+                                                                {% if task.production_order %}
+                                                                <p><strong>Production Order:</strong> {{ task.production_order.order_number }}</p>
+                                                                <p><strong>Product:</strong> {{ task.production_order.product.name }}</p>
+                                                                <p><strong>Quantity:</strong> {{ task.quantity }} units</p>
+                                                                {% endif %}
+                                                                {% if task.workstation %}
+                                                                <p><strong>Workstation:</strong> {{ task.workstation.name }}</p>
+                                                                {% endif %}
+                                                                <p><strong>Estimated Duration:</strong> {{ task.estimated_hours|default:0|floatformat:1 }} hours</p>
+                                                                <p><strong>Labour Cost:</strong> Ksh {{ task.labour_cost|default:0|intcomma }}</p>
+                                                                <p><strong>Progress:</strong> {{ task.progress|default:0 }}%</p>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {% if task.notes %}
+                                                        <div class="mt-3">
+                                                            <h6>Notes</h6>
+                                                            <div class="card">
+                                                                <div class="card-body">
+                                                                    {{ task.notes|linebreaks }}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-check-circle display-1 text-muted"></i>
+                        <h4 class="mt-3">No tasks assigned</h4>
+                        <p class="text-muted">You don't have any assigned tasks at the moment.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Completed Tasks -->
+            {% if completed_tasks %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-success">
+                        <i class="bi bi-check-circle me-1"></i> Completed Tasks
+                        <span class="badge bg-success">{{ completed_tasks.count }}</span>
+                    </h6>
+                    <a href="{% url 'hr:completed_tasks' %}" class="btn btn-sm btn-outline-success">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Task</th>
+                                    <th>Completed On</th>
+                                    <th>Labour Cost</th>
+                                    <th>Status</th>
+                                    <th>Payment</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in completed_tasks|slice:":5" %}
+                                <tr>
+                                    <td>{{ task.task_name }}</td>
+                                    <td>{{ task.completed_date|date:"d M Y H:i"|default:"-" }}</td>
+                                    <td>Ksh {{ task.labour_cost|default:0|intcomma }}</td>
+                                    <td>
+                                        {% if task.verified %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Verified
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="bi bi-clock"></i> Pending Verification
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if task.paid %}
+                                        <span class="badge bg-success">Paid</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="col-lg-4">
+            <!-- Earnings Summary -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-cash-stack me-1"></i> Earnings Summary
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Current Month Earnings
+                            <span class="badge bg-primary rounded-pill">Ksh {{ current_month_earnings|default:0|intcomma }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Unpaid Earnings
+                            <span class="badge bg-warning rounded-pill">Ksh {{ unpaid_earnings|default:0|intcomma }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Total Lifetime Earnings
+                            <span class="badge bg-success rounded-pill">Ksh {{ total_earnings|default:0|intcomma }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Pending Verification
+                            <span class="badge bg-info rounded-pill">Ksh {{ pending_verification|default:0|intcomma }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Statistics -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-pie-chart me-1"></i> Task Statistics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-clock text-warning me-2"></i>
+                                Pending
+                            </div>
+                            <span class="badge bg-warning rounded-pill">{{ pending_count|default:0 }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-gear text-primary me-2"></i>
+                                In Progress
+                            </div>
+                            <span class="badge bg-primary rounded-pill">{{ in_progress_count|default:0 }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-check-circle text-success me-2"></i>
+                                Completed
+                            </div>
+                            <span class="badge bg-success rounded-pill">{{ completed_count|default:0 }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-check2-square text-info me-2"></i>
+                                Verified
+                            </div>
+                            <span class="badge bg-info rounded-pill">{{ verified_count|default:0 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Work Logs -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-clock-history me-1"></i> Recent Work Logs
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_work_logs %}
+                    <div class="list-group list-group-flush">
+                        {% for log in recent_work_logs %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <strong>{{ log.task.task_name|default:"Task" }}</strong>
+                                <span class="text-success">Ksh {{ log.amount|default:0|intcomma }}</span>
+                            </div>
+                            <small class="text-muted d-block">{{ log.created_at|date:"d M Y" }}</small>
+                            <small class="d-block">
+                                <i class="bi bi-clock"></i> {{ log.hours_worked|default:0 }} hours
+                                {% if log.paid %}
+                                <span class="badge bg-success float-end">Paid</span>
+                                {% else %}
+                                <span class="badge bg-warning float-end">Pending</span>
+                                {% endif %}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3">No work logs yet</p>
+                    {% endif %}
+                    <div class="text-center mt-3">
+                        <a href="{% url 'hr:worklog_list' %}" class="btn btn-sm btn-outline-primary">View All Logs</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-lightning me-1"></i> Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'accounts:profile' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-person me-1"></i> View Profile
+                        </a>
+                        <a href="{% url 'hr:attendance_checkin' %}" class="btn btn-outline-success">
+                            <i class="bi bi-door-open me-1"></i> Check In/Out
+                        </a>
+                        <button class="btn btn-outline-warning" id="refreshTasksBtn">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Refresh Tasks
+                        </button>
+                        <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#attendanceModal">
+                            <i class="bi bi-calendar-check me-1"></i> View Attendance
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Modal -->
+<div class="modal fade" id="attendanceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">My Attendance</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <i class="bi bi-calendar-check display-4 text-primary"></i>
+                    <h4 class="mt-3">{{ today|date:"d F Y"|default:"Today" }}</h4>
+                </div>
+                
+                {% if today_attendance %}
+                <div class="alert alert-success">
+                    <h6><i class="bi bi-check-circle me-1"></i> Attendance Recorded</h6>
+                    <p class="mb-1"><strong>Status:</strong> {{ today_attendance.get_status_display }}</p>
+                    {% if today_attendance.check_in %}
+                    <p class="mb-1"><strong>Check In:</strong> {{ today_attendance.check_in|time:"H:i" }}</p>
+                    {% endif %}
+                    {% if today_attendance.check_out %}
+                    <p class="mb-0"><strong>Check Out:</strong> {{ today_attendance.check_out|time:"H:i" }}</p>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    No attendance recorded for today
+                </div>
+                {% endif %}
+                
+                <div class="mt-4">
+                    <h6>This Week's Attendance</h6>
+                    <div class="list-group list-group-flush">
+                        {% for att in weekly_attendance %}
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span>{{ att.date|date:"D, d M" }}</span>
+                            <span class="badge bg-{% if att.status == 'present' %}success{% elif att.status == 'absent' %}danger{% else %}warning{% endif %}">
+                                {{ att.get_status_display }}
+                            </span>
+                        </div>
+                        {% empty %}
+                        <div class="list-group-item text-center text-muted">
+                            No attendance records this week
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="{% url 'hr:attendance_list' %}" class="btn btn-primary">View Full History</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success/Error Messages -->
+{% if messages %}
+<div class="position-fixed top-0 end-0 p-3" style="z-index: 1050">
+    {% for message in messages %}
+    <div class="toast align-items-center text-white bg-{% if message.tags %}{{ message.tags }}{% else %}info{% endif %} border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body">
+                {{ message }}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+    
+    // Initialize toasts
+    var toastElList = [].slice.call(document.querySelectorAll('.toast'))
+    var toastList = toastElList.map(function (toastEl) {
+        return new bootstrap.Toast(toastEl).show()
+    });
+    
+    // Refresh Tasks Button
+    $('#refreshTasksBtn').click(function() {
+        $(this).html('<i class="bi bi-arrow-clockwise me-1"></i> Refreshing...');
+        $(this).prop('disabled', true);
+        location.reload();
+    });
+    
+    // Auto-refresh every 2 minutes if there are in-progress tasks
+    {% if in_progress_count and in_progress_count > 0 %}
+    setTimeout(function() {
+        location.reload();
+    }, 120000); // 2 minutes
+    {% endif %}
+    
+    // Handle progress update form submission
+    $('form[action*="task_update"]').submit(function(e) {
+        var form = $(this);
+        var progressInput = form.find('input[name="progress"]');
+        var progressValue = parseInt(progressInput.val());
+        
+        if (isNaN(progressValue) || progressValue < 0 || progressValue > 100) {
+            e.preventDefault();
+            alert('Please enter a valid progress value between 0 and 100.');
+            progressInput.focus();
+        }
+    });
+    
+    // Confirm before starting task
+    $('form[action*="task_start"]').submit(function(e) {
+        if (!confirm('Are you sure you want to start this task?')) {
+            e.preventDefault();
+        }
+    });
+    
+    // Confirm before completing task
+    $('form[action*="task_complete"]').submit(function(e) {
+        if (!confirm('Are you sure you have completed this task?')) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Assign Task - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-person-plus me-1"></i> Assign Task to Worker
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <!-- Task Information -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h6>Task Details</h6>
+                            <p><strong>Task:</strong> {{ task.task_name }}</p>
+                            <p><strong>Production Order:</strong> {{ task.production_order.order_number }}</p>
+                            <p><strong>Product:</strong> {{ task.production_order.product.name }}</p>
+                            <p><strong>Quantity:</strong> {{ task.quantity }} units</p>
+                            <p><strong>Labour Cost:</strong> Ksh {{ task.labour_cost|floatformat:2 }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Assignment Form -->
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Select Worker</label>
+                            <select name="worker_id" class="form-select" required>
+                                <option value="">-- Select a worker --</option>
+                                {% for worker in workers %}
+                                <option value="{{ worker.id }}">
+                                    {{ worker.get_full_name }} - {{ worker.get_role_display }}
+                                    {% if worker.employee %}
+                                    ({{ worker.employee.department }})
+                                    {% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Only active fundis/workers are shown</small>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> Assign Task
+                            </button>
+                            <a href="{% url 'production:production_order_detail' task.production_order.id %}" 
+                               class="btn btn-secondary">
+                                <i class="bi bi-x-circle me-1"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

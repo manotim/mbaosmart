@@ -28,7 +28,7 @@ def login_view(request):
                 if user.role == 'owner':
                     return redirect('accounts:profile')
                 elif user.role == 'store_manager':
-                    return redirect('accounts:purchase_order_list')
+                    return redirect('procurement:purchase_order_list')
                 elif user.role == 'fundi':
                     return redirect('accounts:profile')
                 elif user.role == 'accountant':
@@ -39,6 +39,7 @@ def login_view(request):
         form = UserLoginForm()
     
     return render(request, 'accounts/login.html', {'form': form})
+
 
 # Logout View
 def logout_view(request):

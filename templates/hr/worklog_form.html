@@ -1,0 +1,87 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if object %}Edit Work Log{% else %}Add Work Log{% endif %} - MbaoSmart{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-clock-history me-1"></i> 
+                        {% if object %}Edit Work Log{% else %}Add Work Log{% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.employee|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.date|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.production_task|as_crispy_field }}
+                                <small class="text-muted">Leave blank for manual work entry</small>
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.task_description|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.hours_worked|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.amount_earned|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                {{ form.notes|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> 
+                                {% if object %}Update Work Log{% else %}Create Work Log{% endif %}
+                            </button>
+                            <a href="{% url 'hr:worklog_list' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle me-1"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Help Information -->
+            <div class="card shadow mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">
+                        <i class="bi bi-info-circle me-1"></i> Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li>If you select a production task, the system will auto-fill task description</li>
+                        <li>For manual work entries, fill in the task description field</li>
+                        <li>Amount earned will be automatically calculated if a production task is selected</li>
+                        <li>Work logs can be marked as paid later in the payroll module</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
