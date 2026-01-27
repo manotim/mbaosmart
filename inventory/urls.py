@@ -42,4 +42,5 @@ urlpatterns = [
     # API URLs
     path('api/material/<int:material_id>/', views.get_material_details, name='api_material_details'),
     path('api/chart-data/', views.inventory_chart_data, name='api_chart_data'),
+    path('api/stock-data/', views.api_stock_data, name='api_stock_data'),
 ]

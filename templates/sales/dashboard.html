@@ -1,0 +1,273 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Sales Dashboard - FurniTrack Pro{% endblock %}
+
+{% block page_title %}Sales Dashboard{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{% url 'sales:sale_create' %}" class="btn btn-sm btn-success">
+        <i class="fas fa-plus"></i> New Sale
+    </a>
+    <a href="{% url 'sales:stock_transfer_create' %}" class="btn btn-sm btn-primary">
+        <i class="fas fa-truck"></i> Transfer Stock
+    </a>
+    <a href="{% url 'sales:sales_report' %}" class="btn btn-sm btn-info">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Statistics Cards -->
+    <div class="col-md-3 mb-4">
+        <div class="card stat-card bg-success-gradient text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Today's Sales</h5>
+                        <h2 class="mb-0">Ksh {{ today_sales_amount|intcomma }}</h2>
+                        <small>{{ today_sales_count }} transactions</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-shopping-cart fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card stat-card bg-info-gradient text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Monthly Sales</h5>
+                        <h2 class="mb-0">Ksh {{ monthly_sales_amount|intcomma }}</h2>
+                        <small>{{ monthly_sales_count }} transactions</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-chart-line fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card stat-card bg-warning-gradient text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Low Stock Items</h5>
+                        <h2 class="mb-0">{{ low_stock_items.count }}</h2>
+                        <small>Need restocking</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card stat-card bg-primary-gradient text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Shops</h5>
+                        <h2 class="mb-0">{{ shops.count }}</h2>
+                        <small>Active outlets</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-store fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Shops List -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-store"></i> My Shops</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for shop in shops %}
+                    <a href="{% url 'sales:shop_detail' pk=shop.pk %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ shop.name }}</h6>
+                            <small class="text-muted">{{ shop.shop_code }}</small>
+                        </div>
+                        <p class="mb-1 small">
+                            <i class="fas fa-map-marker-alt"></i> {{ shop.location }}
+                            {% if shop.manager == user %}
+                            <span class="badge bg-info float-end">Manager</span>
+                            {% endif %}
+                        </p>
+                        <small class="text-muted">
+                            Stock Value: Ksh {{ shop.total_stock_value|intcomma }}
+                        </small>
+                    </a>
+                    {% empty %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-store-slash fa-2x text-muted"></i>
+                        <p class="mt-2">No shops assigned</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Sales -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-receipt"></i> Recent Sales</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Invoice</th>
+                                <th>Shop</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in today_sales|slice:":5" %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'sales:sale_detail' pk=sale.pk %}" class="text-decoration-none">
+                                        {{ sale.invoice_number }}
+                                    </a>
+                                </td>
+                                <td>{{ sale.shop.name }}</td>
+                                <td>Ksh {{ sale.total_amount|intcomma }}</td>
+                                <td>
+                                    <span class="badge bg-{% if sale.status == 'completed' %}success{% else %}warning{% endif %}">
+                                        {{ sale.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-3">
+                                    <i class="fas fa-receipt fa-2x text-muted"></i>
+                                    <p class="mt-2">No sales today</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center">
+                    <a href="{% url 'sales:sale_list' %}" class="btn btn-sm btn-outline-success">
+                        View All Sales
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Low Stock Alert -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Low Stock Items</h5>
+            </div>
+            <div class="card-body">
+                {% if low_stock_items %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Shop</th>
+                                <th>Current</th>
+                                <th>Min Level</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in low_stock_items %}
+                            <tr>
+                                <td>{{ item.product.name }}</td>
+                                <td>{{ item.shop.name }}</td>
+                                <td class="text-danger fw-bold">{{ item.quantity }}</td>
+                                <td>{{ item.min_stock_level }}</td>
+                                <td>
+                                    <a href="{% url 'sales:stock_transfer_create' %}" class="btn btn-sm btn-outline-warning">
+                                        Restock
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-check-circle fa-2x text-success"></i>
+                    <p class="mt-2">All stock levels are adequate</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pending Transfers -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-truck"></i> Pending Transfers</h5>
+            </div>
+            <div class="card-body">
+                {% if pending_transfers %}
+                <div class="list-group">
+                    {% for transfer in pending_transfers %}
+                    <a href="{% url 'sales:stock_transfer_detail' pk=transfer.pk %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ transfer.transfer_number }}</h6>
+                            <span class="badge bg-{% if transfer.status == 'delivered' %}warning{% else %}info{% endif %}">
+                                {{ transfer.get_status_display }}
+                            </span>
+                        </div>
+                        <p class="mb-1 small">
+                            From: {{ transfer.from_location.name|default:"Manufacturing" }}<br>
+                            To: {{ transfer.to_shop.name }}
+                        </p>
+                        <small class="text-muted">
+                            {{ transfer.transfer_date|date:"M d, Y" }}
+                        </small>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-truck-loading fa-2x text-muted"></i>
+                    <p class="mt-2">No pending transfers</p>
+                </div>
+                {% endif %}
+                <div class="text-center mt-3">
+                    <a href="{% url 'sales:stock_transfer_list' %}" class="btn btn-sm btn-outline-info">
+                        View All Transfers
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

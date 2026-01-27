@@ -1,0 +1,243 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+{% load crispy_forms_tags %}
+
+{% block title %}Add Items to Sale - FurniTrack Pro{% endblock %}
+
+{% block page_title %}
+Add Items to Sale: {{ sale.invoice_number }}
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{% url 'sales:sale_detail' pk=sale.pk %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Sale
+    </a>
+    <a href="{% url 'sales:sale_list' %}" class="btn btn-sm btn-outline-info">
+        <i class="fas fa-list"></i> All Sales
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Add Item Form -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-plus-circle"></i> Add Item</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    {{ form.product|as_crispy_field }}
+                    {{ form.quantity|as_crispy_field }}
+                    {{ form.unit_price|as_crispy_field }}
+                    {{ form.discount_percentage|as_crispy_field }}
+                    {{ form.notes|as_crispy_field }}
+                    
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Item
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Sale Summary -->
+                <div class="alert alert-success mt-4">
+                    <h6><i class="fas fa-info-circle"></i> Sale Summary</h6>
+                    <p class="mb-1"><strong>Shop:</strong> {{ sale.shop.name }}</p>
+                    <p class="mb-1"><strong>Customer:</strong> {{ sale.customer_name|default:"Walk-in" }}</p>
+                    <p class="mb-1"><strong>Payment:</strong> {{ sale.get_payment_method_display }}</p>
+                    <p class="mb-0"><strong>Items:</strong> {{ items|length }}</p>
+                </div>
+                
+                <!-- Stock Availability Note -->
+                <div class="alert alert-info mt-3">
+                    <h6><i class="fas fa-exclamation-circle"></i> Stock Check</h6>
+                    <p class="mb-0">System will check stock availability before adding items.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Current Items -->
+    <div class="col-md-8 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-boxes"></i> Sale Items</h5>
+                <div>
+                    <span class="badge bg-light text-dark me-2">{{ items|length }} items</span>
+                    <a href="{% url 'sales:sale_complete' pk=sale.pk %}" class="btn btn-sm btn-light">
+                        <i class="fas fa-check-circle"></i> Complete Sale
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th>SKU</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Discount %</th>
+                                <th>Total Price</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.product.name }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ item.product.sku }}</span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold">{{ item.quantity }}</span>
+                                </td>
+                                <td>Ksh {{ item.unit_price|intcomma }}</td>
+                                <td>
+                                    {% if item.discount_percentage > 0 %}
+                                    <span class="text-success">{{ item.discount_percentage }}%</span>
+                                    {% else %}
+                                    <span class="text-muted">0%</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="fw-bold">Ksh {{ item.total_price|intcomma }}</span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'sales:sale_item_delete' pk=sale.pk item_pk=item.pk %}" 
+                                       class="btn btn-sm btn-outline-danger"
+                                       onclick="return confirm('Are you sure you want to remove this item?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="5" class="text-end"><strong>Subtotal:</strong></td>
+                                <td><strong>Ksh {{ sale.subtotal|intcomma }}</strong></td>
+                                <td></td>
+                            </tr>
+                            {% if sale.discount_amount > 0 %}
+                            <tr>
+                                <td colspan="5" class="text-end"><strong class="text-success">Discount:</strong></td>
+                                <td><strong class="text-success">- Ksh {{ sale.discount_amount|intcomma }}</strong></td>
+                                <td></td>
+                            </tr>
+                            {% endif %}
+                            <tr class="table-active">
+                                <td colspan="5" class="text-end"><strong>Total Amount:</strong></td>
+                                <td><strong class="text-primary">Ksh {{ sale.total_amount|intcomma }}</strong></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="d-flex justify-content-between mt-4">
+                    <div>
+                        <a href="{% url 'sales:sale_detail' pk=sale.pk %}" class="btn btn-success">
+                            <i class="fas fa-check-circle"></i> View & Complete Sale
+                        </a>
+                    </div>
+                    <div>
+                        <a href="{% url 'sales:sale_list' %}" class="btn btn-outline-secondary">
+                            Save & Exit
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                    <h4>No Items Added Yet</h4>
+                    <p class="text-muted">Start adding items to this sale using the form on the left.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Stock Availability -->
+        <div class="card shadow mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-warehouse"></i> Shop Stock Status</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for item in sale.shop.stock_items.all|slice:":6" %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card border">
+                            <div class="card-body">
+                                <h6 class="card-title mb-1">{{ item.product.name }}</h6>
+                                <p class="card-text small text-muted mb-1">SKU: {{ item.product.sku }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-{{ item.stock_status }}">
+                                        {{ item.quantity }} in stock
+                                    </span>
+                                    <small class="text-muted">Min: {{ item.min_stock_level }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-md-12 text-center py-3">
+                        <i class="fas fa-box-open fa-2x text-muted"></i>
+                        <p class="mt-2">No stock items in this shop</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="text-center mt-2">
+                    <a href="{% url 'sales:shop_detail' pk=sale.shop.pk %}" class="btn btn-sm btn-outline-info">
+                        View All Stock
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-calculate unit price when product is selected
+    const productSelect = document.getElementById('id_product');
+    const unitPriceInput = document.getElementById('id_unit_price');
+    
+    if (productSelect && unitPriceInput) {
+        // Store product prices
+        const productPrices = {};
+        {% for product in sale.shop.stock_items.all %}
+        productPrices[{{ product.product.id }}] = '{{ product.product.selling_price }}';
+        {% endfor %}
+        
+        productSelect.addEventListener('change', function() {
+            const productId = this.value;
+            if (productId in productPrices) {
+                unitPriceInput.value = productPrices[productId];
+            }
+        });
+    }
+    
+    // Validate quantity
+    const quantityInput = document.getElementById('id_quantity');
+    if (quantityInput) {
+        quantityInput.addEventListener('change', function() {
+            if (this.value < 1) {
+                this.value = 1;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 # inventory/models.py
 from django.db import models
-
+from django.db.models import F, ExpressionWrapper, DecimalField
 from django.core.validators import MinValueValidator
 from django.utils import timezone
 from django.conf import settings
@@ -56,21 +56,27 @@ class RawMaterial(models.Model):
     
     def get_absolute_url(self):
         from django.urls import reverse
-        return reverse('accounts:raw_material_detail', args=[str(self.id)])
+        return reverse('inventory:raw_material_detail', args=[str(self.id)])  # Fixed namespace
     
     @property
     def total_value(self):
-        return self.current_stock * self.unit_price
+        try:
+            return self.current_stock * self.unit_price
+        except (TypeError, ValueError):
+            return 0
     
     @property
     def stock_status(self):
-        if self.current_stock <= 0:
-            return 'out_of_stock'
-        elif self.current_stock <= self.min_stock_level:
-            return 'low_stock'
-        elif self.current_stock >= self.max_stock_level:
-            return 'over_stock'
-        else:
+        try:
+            if self.current_stock <= 0:
+                return 'out_of_stock'
+            elif self.current_stock <= self.min_stock_level:
+                return 'low_stock'
+            elif self.current_stock >= self.max_stock_level:
+                return 'over_stock'
+            else:
+                return 'normal'
+        except (TypeError, ValueError):
             return 'normal'
     
     @property
@@ -92,6 +98,33 @@ class RawMaterial(models.Model):
             'over_stock': 'Over Stock'
         }
         return status_text.get(self.stock_status, 'Unknown')
+    
+    @classmethod
+    def get_inventory_summary(cls):
+        """Get summary statistics for all raw materials"""
+        from django.db.models import Sum, Count, Q
+        
+        queryset = cls.objects.all()
+        
+        total_materials = queryset.count()
+        total_value = sum(mat.total_value for mat in queryset)
+        
+        low_stock_count = queryset.filter(
+            current_stock__gt=0,
+            current_stock__lte=F('min_stock_level')
+        ).count()
+        
+        out_of_stock_count = queryset.filter(
+            current_stock=0
+        ).count()
+        
+        return {
+            'total_materials': total_materials,
+            'total_value': total_value,
+            'low_stock_count': low_stock_count,
+            'out_of_stock_count': out_of_stock_count,
+        }
+
 
 class InventoryTransaction(models.Model):
     TRANSACTION_TYPES = [
@@ -126,16 +159,28 @@ class InventoryTransaction(models.Model):
         if not self.total_value and self.unit_price:
             self.total_value = self.quantity * self.unit_price
         
-        # Update raw material stock
-        raw_material = self.raw_material
-        if self.transaction_type in ['purchase', 'return']:
-            raw_material.current_stock += self.quantity
-        elif self.transaction_type in ['production_usage', 'damage', 'transfer']:
-            raw_material.current_stock -= self.quantity
-        # For adjustment, quantity is the new stock level
+        # Check if this is an update or new creation
+        is_new = self.pk is None
         
-        raw_material.save()
+        if is_new:
+            # Get the raw material
+            raw_material = self.raw_material
+            previous_stock = raw_material.current_stock
+            
+            # Update raw material stock based on transaction type
+            if self.transaction_type in ['purchase', 'return']:
+                raw_material.current_stock += self.quantity
+            elif self.transaction_type in ['production_usage', 'damage', 'transfer']:
+                raw_material.current_stock -= self.quantity
+                # Ensure stock doesn't go negative
+                if raw_material.current_stock < 0:
+                    raw_material.current_stock = 0
+            # For adjustment type, the StockAdjustment model handles it
+            
+            raw_material.save()
+        
         super().save(*args, **kwargs)
+
 
 class StockAdjustment(models.Model):
     ADJUSTMENT_TYPES = [
@@ -152,12 +197,12 @@ class StockAdjustment(models.Model):
         ('other', 'Other'),
     ]
     
-    raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
+    raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE, related_name='adjustments')
     adjustment_type = models.CharField(max_length=10, choices=ADJUSTMENT_TYPES)
     quantity = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)])
     reason = models.CharField(max_length=20, choices=REASONS)
     notes = models.TextField(blank=True)
-    adjusted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    adjusted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='stock_adjustments')
     adjusted_at = models.DateTimeField(auto_now_add=True)
     previous_stock = models.DecimalField(max_digits=10, decimal_places=2)
     new_stock = models.DecimalField(max_digits=10, decimal_places=2)
@@ -171,31 +216,40 @@ class StockAdjustment(models.Model):
         return f"{self.get_adjustment_type_display()} - {self.raw_material.name}"
     
     def save(self, *args, **kwargs):
-        if not self.pk:
+        is_new = self.pk is None
+        
+        if is_new:
             self.previous_stock = self.raw_material.current_stock
             
             if self.adjustment_type == 'add':
                 self.new_stock = self.previous_stock + self.quantity
             elif self.adjustment_type == 'remove':
                 self.new_stock = self.previous_stock - self.quantity
+                # Ensure stock doesn't go negative
+                if self.new_stock < 0:
+                    self.new_stock = 0
+                    self.quantity = self.previous_stock  # Adjust quantity to remove only available stock
             elif self.adjustment_type == 'set':
                 self.new_stock = self.quantity
+                # Calculate the quantity difference for the transaction
+                self.quantity = abs(self.new_stock - self.previous_stock)
+            
+            # Update raw material stock
+            self.raw_material.current_stock = self.new_stock
+            self.raw_material.save()
             
             # Create inventory transaction
             InventoryTransaction.objects.create(
                 raw_material=self.raw_material,
                 transaction_type='adjustment',
                 quantity=self.quantity,
-                reference=f"ADJ-{self.id}",
+                reference=f"ADJ-{timezone.now().strftime('%Y%m%d%H%M%S')}",
                 notes=f"{self.get_reason_display()}: {self.notes}",
                 created_by=self.adjusted_by
             )
-            
-            # Update raw material stock
-            self.raw_material.current_stock = self.new_stock
-            self.raw_material.save()
         
         super().save(*args, **kwargs)
+
 
 class StockAlert(models.Model):
     ALERT_TYPES = [
@@ -204,11 +258,17 @@ class StockAlert(models.Model):
         ('expiring', 'Expiring Soon'),
     ]
     
-    raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
+    raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE, related_name='alerts')
     alert_type = models.CharField(max_length=20, choices=ALERT_TYPES)
     message = models.TextField()
     is_active = models.BooleanField(default=True)
-    acknowledged_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    acknowledged_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='acknowledged_alerts'
+    )
     acknowledged_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -219,3 +279,10 @@ class StockAlert(models.Model):
     
     def __str__(self):
         return f"{self.get_alert_type_display()} - {self.raw_material.name}"
+    
+    def acknowledge(self, user):
+        """Mark alert as acknowledged"""
+        self.acknowledged_by = user
+        self.acknowledged_at = timezone.now()
+        self.is_active = False
+        self.save()

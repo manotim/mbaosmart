@@ -1,0 +1,277 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Transfer Stock - Inventory Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <i class="bi bi-arrow-left-right me-2"></i>Transfer Stock
+                        </h4>
+                        <a href="{% url 'inventory:transaction_list' %}" class="btn btn-light btn-sm">
+                            <i class="bi bi-arrow-left"></i> Back to Transactions
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    {% if messages %}
+                    <div class="mb-4">
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Transfer stock from one location to another. This will create an outgoing transaction record.
+                    </div>
+
+                    <form method="post" id="transferForm">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-4">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">Transfer Details</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">From Location <span class="text-danger">*</span></label>
+                                            {{ form.from_location }}
+                                            {% if form.from_location.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.from_location.errors }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">To Location <span class="text-danger">*</span></label>
+                                            {{ form.to_location }}
+                                            {% if form.to_location.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.to_location.errors }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card mb-4">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">Item Details</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Raw Material <span class="text-danger">*</span></label>
+                                            {{ form.raw_material }}
+                                            {% if form.raw_material.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.raw_material.errors }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Quantity <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                {{ form.quantity }}
+                                                <span class="input-group-text" id="unitDisplay">unit</span>
+                                            </div>
+                                            {% if form.quantity.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ form.quantity.errors }}
+                                            </div>
+                                            {% endif %}
+                                            <small class="text-muted" id="stockInfo">Available stock: --</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">Additional Information</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Notes</label>
+                                    {{ form.notes }}
+                                    {% if form.notes.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.notes.errors }}
+                                    </div>
+                                    {% endif %}
+                                    <small class="text-muted">Optional: Add any relevant notes about this transfer.</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button type="reset" class="btn btn-secondary">
+                                <i class="bi bi-arrow-clockwise"></i> Reset Form
+                            </button>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="bi bi-check-circle"></i> Complete Transfer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="card-footer text-muted">
+                    <small>
+                        <i class="bi bi-lightbulb"></i>
+                        <strong>Note:</strong> This transfer will reduce stock from the source location. 
+                        Make sure to update the destination location's records separately.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const rawMaterialSelect = document.querySelector('#id_raw_material');
+    const quantityInput = document.querySelector('#id_quantity');
+    const stockInfo = document.querySelector('#stockInfo');
+    const unitDisplay = document.querySelector('#unitDisplay');
+    const form = document.querySelector('#transferForm');
+    const submitBtn = document.querySelector('#submitBtn');
+    
+    // Stock data cache
+    let stockData = {};
+    
+    // Fetch stock data for all materials
+    function fetchStockData() {
+        fetch('{% url "inventory:api_stock_data" %}')
+            .then(response => response.json())
+            .then(data => {
+                stockData = data;
+                updateStockInfo();
+            })
+            .catch(error => {
+                console.error('Error fetching stock data:', error);
+            });
+    }
+    
+    // Update stock info based on selected material
+    function updateStockInfo() {
+        const selectedId = rawMaterialSelect.value;
+        if (selectedId && stockData[selectedId]) {
+            const material = stockData[selectedId];
+            stockInfo.textContent = `Available stock: ${material.stock} ${material.unit}`;
+            unitDisplay.textContent = material.unit;
+            
+            // Add color coding based on stock level
+            if (material.stock < material.min_stock) {
+                stockInfo.className = 'text-danger';
+            } else if (material.stock < material.max_stock * 0.3) {
+                stockInfo.className = 'text-warning';
+            } else {
+                stockInfo.className = 'text-success';
+            }
+        } else {
+            stockInfo.textContent = 'Available stock: --';
+            unitDisplay.textContent = 'unit';
+            stockInfo.className = 'text-muted';
+        }
+    }
+    
+    // Validate quantity on input
+    function validateQuantity() {
+        const selectedId = rawMaterialSelect.value;
+        const quantity = parseFloat(quantityInput.value);
+        
+        if (!selectedId || !quantity) return true;
+        
+        if (stockData[selectedId] && quantity > stockData[selectedId].stock) {
+            quantityInput.classList.add('is-invalid');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-x-circle"></i> Insufficient Stock';
+            return false;
+        } else {
+            quantityInput.classList.remove('is-invalid');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-circle"></i> Complete Transfer';
+            return true;
+        }
+    }
+    
+    // Event listeners
+    if (rawMaterialSelect) {
+        rawMaterialSelect.addEventListener('change', function() {
+            updateStockInfo();
+            validateQuantity();
+        });
+    }
+    
+    if (quantityInput) {
+        quantityInput.addEventListener('input', validateQuantity);
+        quantityInput.addEventListener('blur', validateQuantity);
+    }
+    
+    // Form submission validation
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (!validateQuantity()) {
+                e.preventDefault();
+                alert('Cannot transfer more than available stock!');
+            }
+        });
+    }
+    
+    // Initialize
+    fetchStockData();
+    
+    // Auto-update stock info every 30 seconds
+    setInterval(fetchStockData, 30000);
+});
+</script>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: none;
+}
+
+.card-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.form-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.is-invalid {
+    border-color: #dc3545;
+}
+
+.is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+
+#submitBtn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+</style>
+{% endblock %}

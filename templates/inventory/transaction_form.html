@@ -1,0 +1,107 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Record Inventory Transaction - MbaoSmart{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">{{ title }}</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="transactionForm">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.raw_material|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.transaction_type|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.quantity|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.unit_price|as_crispy_field }}
+                        </div>
+                        <div class="col-md-12">
+                            {{ form.reference|as_crispy_field }}
+                        </div>
+                        <div class="col-md-12">
+                            {{ form.notes|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3" id="transactionNote">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Note:</strong> 
+                        <span id="noteText">
+                            Inventory transactions will update stock levels immediately.
+                        </span>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{% url 'inventory:transaction_list' %}" class="btn btn-secondary me-md-2">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Record Transaction
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Get material details when selected
+        $('#id_raw_material').change(function() {
+            var materialId = $(this).val();
+            if (materialId) {
+                $.ajax({
+                    url: '{% url "inventory:api_material_details" 0 %}'.replace('0', materialId),
+                    type: 'GET',
+                    success: function(data) {
+                        // Auto-populate unit price if empty
+                        if (!$('#id_unit_price').val()) {
+                            $('#id_unit_price').val(data.unit_price);
+                        }
+                    }
+                });
+            }
+        });
+        
+        // Update note based on transaction type
+        $('#id_transaction_type').change(function() {
+            var type = $(this).val();
+            var noteText = $('#noteText');
+            
+            switch(type) {
+                case 'purchase':
+                    noteText.text('Stock will be increased by the quantity entered.');
+                    $('#transactionNote').removeClass('alert-warning alert-danger').addClass('alert-info');
+                    break;
+                case 'production_usage':
+                    noteText.text('Stock will be decreased by the quantity entered.');
+                    $('#transactionNote').removeClass('alert-info alert-danger').addClass('alert-warning');
+                    break;
+                case 'damage':
+                    noteText.text('Stock will be decreased (damaged/wasted items).');
+                    $('#transactionNote').removeClass('alert-info alert-warning').addClass('alert-danger');
+                    break;
+                default:
+                    noteText.text('Inventory transactions will update stock levels immediately.');
+                    $('#transactionNote').removeClass('alert-warning alert-danger').addClass('alert-info');
+            }
+        });
+    });
+</script>
+{% endblock %}

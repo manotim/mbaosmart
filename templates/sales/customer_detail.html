@@ -1,0 +1,248 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Customer {{ customer.name }} - FurniTrack Pro{% endblock %}
+
+{% block page_title %}
+Customer: {{ customer.name }}
+<small class="text-muted">{{ customer.get_customer_type_display }}</small>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{% url 'sales:customer_list' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Customers
+    </a>
+    {% if user.has_perm %}
+    <a href="{% url 'sales:customer_update' pk=customer.pk %}" class="btn btn-sm btn-warning">
+        <i class="fas fa-edit"></i> Edit Customer
+    </a>
+    {% endif %}
+    <a href="{% url 'sales:sale_create' %}?customer={{ customer.name|urlencode }}" class="btn btn-sm btn-success">
+        <i class="fas fa-shopping-cart"></i> New Sale
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Customer Info -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-user-circle"></i> Customer Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th width="40%">Name:</th>
+                        <td><strong>{{ customer.name }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Type:</th>
+                        <td><span class="badge bg-info">{{ customer.get_customer_type_display }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Phone:</th>
+                        <td>{{ customer.phone }}</td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>{{ customer.email|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>ID/Passport:</th>
+                        <td>{{ customer.id_number|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>
+                            {% if customer.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Registered:</th>
+                        <td>{{ customer.created_at|date:"d/m/Y" }}</td>
+                    </tr>
+                </table>
+                
+                <!-- Credit Information -->
+                <div class="alert alert-secondary mt-3">
+                    <h6><i class="fas fa-credit-card"></i> Credit Information</h6>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Credit Limit:</span>
+                        <strong>Ksh {{ customer.credit_limit|intcomma }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Current Balance:</span>
+                        <strong class="{% if customer.current_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                            Ksh {{ customer.current_balance|intcomma }}
+                        </strong>
+                    </div>
+                    <div class="progress mt-2" style="height: 8px;">
+                        {% if customer.credit_limit > 0 %}
+                        {% with usage=customer.current_balance|div:customer.credit_limit|multiply:100 %}
+                        <div class="progress-bar bg-{% if usage > 80 %}danger{% elif usage > 50 %}warning{% else %}success{% endif %}" 
+                             style="width: {{ usage }}%" 
+                             role="progressbar">
+                        </div>
+                        {% endwith %}
+                        {% endif %}
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">Credit Usage</small>
+                        <small class="text-muted">
+                            {% if customer.credit_limit > 0 %}
+                            {% with usage=customer.current_balance|div:customer.credit_limit|multiply:100|floatformat:0 %}
+                            {{ usage }}%
+                            {% endwith %}
+                            {% else %}
+                            0%
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+                
+                <!-- Loyalty Points -->
+                {% if customer.loyalty_points > 0 %}
+                <div class="alert alert-warning mt-3">
+                    <h6><i class="fas fa-star"></i> Loyalty Points</h6>
+                    <div class="text-center">
+                        <h3 class="mb-0">{{ customer.loyalty_points }}</h3>
+                        <p class="mb-0">Points Available</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if customer.address %}
+                <div class="mt-3">
+                    <h6>Address:</h6>
+                    <p class="text-muted">{{ customer.address }}</p>
+                </div>
+                {% endif %}
+                
+                {% if customer.notes %}
+                <div class="mt-3">
+                    <h6>Notes:</h6>
+                    <p class="text-muted">{{ customer.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Customer Statistics -->
+    <div class="col-md-8 mb-4">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card bg-success text-white shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h5 class="card-title">Total Purchases</h5>
+                                <h2 class="mb-0">Ksh {{ customer.total_purchases|intcomma }}</h2>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-shopping-cart fa-3x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card bg-info text-white shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h5 class="card-title">Sales Count</h5>
+                                <h2 class="mb-0">{{ customer.sales_count }}</h2>
+                                <small>Transactions</small>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-receipt fa-3x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Sales -->
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Recent Sales</h5>
+            </div>
+            <div class="card-body">
+                {% if sales %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Invoice</th>
+                                <th>Date</th>
+                                <th>Shop</th>
+                                <th>Items</th>
+                                <th>Amount</th>
+                                <th>Payment</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in sales %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'sales:sale_detail' pk=sale.pk %}" class="text-decoration-none">
+                                        {{ sale.invoice_number }}
+                                    </a>
+                                </td>
+                                <td>{{ sale.sale_date|date:"d/m/Y" }}</td>
+                                <td>{{ sale.shop.name }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ sale.sale_items_count }}</span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold">Ksh {{ sale.total_amount|intcomma }}</span>
+                                    {% if sale.balance > 0 %}
+                                    <br><small class="text-danger">Due: Ksh {{ sale.balance|intcomma }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ sale.get_payment_method_display }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if sale.status == 'completed' %}success{% elif sale.status == 'pending' %}warning{% else %}danger{% endif %}">
+                                        {{ sale.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'sales:sale_detail' pk=sale.pk %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{% url 'sales:sale_list' %}" class="btn btn-sm btn-outline-success">
+                        View All Sales
+                    </a>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-receipt fa-2x text-muted"></i>
+                    <p class="mt-2">No sales recorded for this customer</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

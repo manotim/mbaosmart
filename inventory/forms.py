@@ -1,3 +1,4 @@
+# inventory/forms.py
 from django import forms
 from django.core.exceptions import ValidationError
 from .models import RawMaterial, RawMaterialCategory, InventoryTransaction, StockAdjustment
@@ -90,3 +91,6 @@ class StockTransferForm(forms.Form):
         required=False,
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Transfer notes...'})
     )
+
+
+    

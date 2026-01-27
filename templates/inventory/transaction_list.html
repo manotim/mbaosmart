@@ -1,0 +1,173 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Inventory Transactions - MbaoSmart{% endblock %}
+{% block page_title %}Inventory Transactions{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Transaction History</h5>
+                    {% if perms.inventory.add_inventorytransaction %}
+                    <a href="{% url 'inventory:transaction_create' %}" class="btn btn-sm btn-success">
+                        <i class="bi bi-plus-circle"></i> Record Transaction
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <form method="get" class="row g-3">
+                            <div class="col-md-3">
+                                <input type="date" name="date_from" class="form-control" 
+                                       value="{{ date_from }}" placeholder="From Date">
+                            </div>
+                            <div class="col-md-3">
+                                <input type="date" name="date_to" class="form-control" 
+                                       value="{{ date_to }}" placeholder="To Date">
+                            </div>
+                            <div class="col-md-2">
+                                <select name="transaction_type" class="form-control">
+                                    <option value="">All Types</option>
+                                    {% for type_code, type_name in transaction_types %}
+                                    <option value="{{ type_code }}" {% if selected_type == type_code %}selected{% endif %}>
+                                        {{ type_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select name="material" class="form-control">
+                                    <option value="">All Materials</option>
+                                    {% for material in materials %}
+                                    <option value="{{ material.id }}" {% if selected_material == material.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ material.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-search"></i> Filter
+                                </button>
+                            </div>
+                            <div class="col-md-1">
+                                <a href="{% url 'inventory:transaction_list' %}" class="btn btn-secondary w-100">
+                                    <i class="bi bi-x-circle"></i> Clear
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="stat-card small blue">
+                            <h6>Total Transactions</h6>
+                            <h4>{{ total_transactions }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card small green">
+                            <h6>Total Quantity</h6>
+                            <h4>{{ total_quantity|floatformat:2 }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card small orange">
+                            <h6>Total Value</h6>
+                            <h4>Ksh {{ total_value|floatformat:2 }}</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Material</th>
+                                <th>Type</th>
+                                <th class="text-end">Quantity</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Total Value</th>
+                                <th>Reference</th>
+                                <th>Created By</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                            <tr>
+                                <td>{{ transaction.created_at|date:"d M Y H:i" }}</td>
+                                <td>{{ transaction.raw_material.name }}</td>
+                                <td>
+                                    <span class="badge bg-{% if transaction.transaction_type == 'purchase' %}success{% elif transaction.transaction_type == 'production_usage' %}danger{% else %}info{% endif %}">
+                                        {{ transaction.get_transaction_type_display }}
+                                    </span>
+                                </td>
+                                <td class="text-end {% if transaction.transaction_type == 'purchase' %}text-success{% else %}text-danger{% endif %}">
+                                    {% if transaction.transaction_type == 'purchase' %}+{% else %}-{% endif %}
+                                    {{ transaction.quantity|floatformat:2 }}
+                                </td>
+                                <td class="text-end">Ksh {{ transaction.unit_price|floatformat:2 }}</td>
+                                <td class="text-end fw-bold">Ksh {{ transaction.total_value|floatformat:2 }}</td>
+                                <td><small>{{ transaction.reference|truncatechars:20 }}</small></td>
+                                <td><small>{{ transaction.created_by.get_full_name|default:transaction.created_by.username }}</small></td>
+                                <td><small class="text-muted">{{ transaction.notes|truncatechars:30 }}</small></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4">
+                                    <i class="bi bi-clock-history display-4 text-muted"></i>
+                                    <h5 class="mt-3">No Transactions Found</h5>
+                                    <p class="text-muted">No inventory transactions recorded yet.</p>
+                                    {% if perms.inventory.add_inventorytransaction %}
+                                    <a href="{% url 'inventory:transaction_create' %}" class="btn btn-primary">
+                                        <i class="bi bi-plus-circle"></i> Record First Transaction
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if is_paginated %}
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_type %}&transaction_type={{ selected_type }}{% endif %}{% if selected_material %}&material={{ selected_material }}{% endif %}">
+                                Previous
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                        <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                            <a class="page-link" href="?page={{ num }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_type %}&transaction_type={{ selected_type }}{% endif %}{% if selected_material %}&material={{ selected_material }}{% endif %}">
+                                {{ num }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_type %}&transaction_type={{ selected_type }}{% endif %}{% if selected_material %}&material={{ selected_material }}{% endif %}">
+                                Next
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

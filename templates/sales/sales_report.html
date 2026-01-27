@@ -1,0 +1,398 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Sales Report - FurniTrack Pro{% endblock %}
+
+{% block page_title %}Sales Report{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{% url 'sales:export_sales_report' %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-info">
+        <i class="fas fa-file-export"></i> Export CSV
+    </a>
+    <button class="btn btn-sm btn-secondary" onclick="window.print()">
+        <i class="fas fa-print"></i> Print
+    </button>
+    <a href="{% url 'sales:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Report Filters -->
+<div class="card shadow mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-filter"></i> Report Filters</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" name="start_date" id="start_date" class="form-control" 
+                       value="{{ start_date }}" required>
+            </div>
+            <div class="col-md-3">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" name="end_date" id="end_date" class="form-control" 
+                       value="{{ end_date }}" required>
+            </div>
+            <div class="col-md-3">
+                <label for="shop" class="form-label">Shop</label>
+                <select name="shop" id="shop" class="form-select">
+                    <option value="">All Shops</option>
+                    {% for s in shops %}
+                    <option value="{{ s.id }}" {% if selected_shop and selected_shop.id == s.id %}selected{% endif %}>
+                        {{ s.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-chart-bar"></i> Generate Report
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Report Summary -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-success text-white shadow">
+            <div class="card-body">
+                <div class="text-center">
+                    <h5 class="card-title">Total Sales</h5>
+                    <h1 class="mb-0">{{ total_sales }}</h1>
+                    <small>Transactions</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white shadow">
+            <div class="card-body">
+                <div class="text-center">
+                    <h5 class="card-title">Total Amount</h5>
+                    <h1 class="mb-0">Ksh {{ total_amount|intcomma }}</h1>
+                    <small>Revenue</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white shadow">
+            <div class="card-body">
+                <div class="text-center">
+                    <h5 class="card-title">Items Sold</h5>
+                    <h1 class="mb-0">{{ total_items }}</h1>
+                    <small>Units</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-primary text-white shadow">
+            <div class="card-body">
+                <div class="text-center">
+                    <h5 class="card-title">Average Sale</h5>
+                    <h1 class="mb-0">
+                        Ksh 
+                        {% if total_sales > 0 %}
+                        {{ total_amount|div:total_sales|floatformat:0|intcomma }}
+                        {% else %}
+                        0
+                        {% endif %}
+                    </h1>
+                    <small>Per Transaction</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Payment Method Breakdown -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-money-check-alt"></i> Payment Method Breakdown</h5>
+            </div>
+            <div class="card-body">
+                {% if payment_breakdown %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Payment Method</th>
+                                <th class="text-end">Count</th>
+                                <th class="text-end">Amount</th>
+                                <th class="text-end">Percentage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in payment_breakdown %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-{% if payment.payment_method == 'cash' %}success{% elif payment.payment_method == 'mpesa' %}info{% elif payment.payment_method == 'card' %}warning{% else %}secondary{% endif %}">
+                                        {{ payment.payment_method|title }}
+                                    </span>
+                                </td>
+                                <td class="text-end">{{ payment.count }}</td>
+                                <td class="text-end">Ksh {{ payment.amount|intcomma }}</td>
+                                <td class="text-end">
+                                    {% if total_amount > 0 %}
+                                    {{ payment.amount|div:total_amount|multiply:100|floatformat:1 }}%
+                                    {% else %}
+                                    0%
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-light">
+                                <td><strong>Total</strong></td>
+                                <td class="text-end"><strong>{{ total_sales }}</strong></td>
+                                <td class="text-end"><strong>Ksh {{ total_amount|intcomma }}</strong></td>
+                                <td class="text-end"><strong>100%</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                <!-- Chart Placeholder -->
+                <div class="mt-3">
+                    <div style="height: 200px; background: #f8f9fa; border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-chart-pie fa-2x text-muted"></i>
+                        <span class="ms-2">Payment Method Chart</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-money-check-alt fa-2x text-muted"></i>
+                    <p class="mt-2">No payment data available</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Daily Sales Trend -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Daily Sales Trend</h5>
+            </div>
+            <div class="card-body">
+                {% if daily_sales %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th class="text-end">Sales Count</th>
+                                <th class="text-end">Amount</th>
+                                <th class="text-end">Avg/Sale</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in daily_sales|slice:":10" %}
+                            <tr>
+                                <td>{{ day.sale_date__date|date:"d/m/Y" }}</td>
+                                <td class="text-end">{{ day.count }}</td>
+                                <td class="text-end">Ksh {{ day.amount|intcomma }}</td>
+                                <td class="text-end">
+                                    Ksh {{ day.amount|div:day.count|floatformat:0|intcomma }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Chart Placeholder -->
+                <div class="mt-3">
+                    <div style="height: 200px; background: #f8f9fa; border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-chart-line fa-2x text-muted"></i>
+                        <span class="ms-2">Daily Sales Chart</span>
+                    </div>
+                </div>
+                
+                {% if daily_sales|length > 10 %}
+                <div class="text-center mt-2">
+                    <small class="text-muted">Showing last 10 days only</small>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-chart-line fa-2x text-muted"></i>
+                    <p class="mt-2">No daily sales data available</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sales Details -->
+<div class="card shadow">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-list"></i> Sales Details</h5>
+    </div>
+    <div class="card-body">
+        {% if sales %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Invoice No.</th>
+                        <th>Date & Time</th>
+                        <th>Shop</th>
+                        <th>Customer</th>
+                        <th class="text-end">Items</th>
+                        <th class="text-end">Amount</th>
+                        <th>Payment</th>
+                        <th>Status</th>
+                        <th>Sold By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'sales:sale_detail' pk=sale.pk %}" class="text-decoration-none">
+                                {{ sale.invoice_number }}
+                            </a>
+                        </td>
+                        <td>{{ sale.sale_date|date:"d/m/Y H:i" }}</td>
+                        <td>{{ sale.shop.name }}</td>
+                        <td>{{ sale.customer_name|default:"Walk-in" }}</td>
+                        <td class="text-end">{{ sale.sale_items_count }}</td>
+                        <td class="text-end fw-bold">Ksh {{ sale.total_amount|intcomma }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ sale.get_payment_method_display }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if sale.status == 'completed' %}success{% else %}warning{% endif %}">
+                                {{ sale.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ sale.sold_by.get_full_name|default:sale.sold_by.username }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+            <h4>No Sales Found</h4>
+            <p class="text-muted">No sales match your filter criteria.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Print Version -->
+<div class="d-none d-print-block">
+    <div class="text-center mb-4">
+        <h3>FurniTrack Pro - Sales Report</h3>
+        <h5>
+            {% if selected_shop %}
+            {{ selected_shop.name }}
+            {% else %}
+            All Shops
+            {% endif %}
+        </h5>
+        <p>
+            Period: {{ start_date }} to {{ end_date }}<br>
+            Generated: {% now "d/m/Y H:i" %}
+        </p>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-3 text-center">
+            <h6>Total Sales</h6>
+            <h4>{{ total_sales }}</h4>
+        </div>
+        <div class="col-3 text-center">
+            <h6>Total Amount</h6>
+            <h4>Ksh {{ total_amount|intcomma }}</h4>
+        </div>
+        <div class="col-3 text-center">
+            <h6>Items Sold</h6>
+            <h4>{{ total_items }}</h4>
+        </div>
+        <div class="col-3 text-center">
+            <h6>Average Sale</h6>
+            <h4>
+                Ksh 
+                {% if total_sales > 0 %}
+                {{ total_amount|div:total_sales|floatformat:0|intcomma }}
+                {% else %}
+                0
+                {% endif %}
+            </h4>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .navbar, .sidebar, .btn-group, .card-header, .alert, .d-print-none,
+    .card:not(.d-print-block) {
+        display: none !important;
+    }
+    
+    .d-print-block {
+        display: block !important;
+    }
+    
+    body {
+        font-size: 12px;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: none;
+    }
+    
+    .card-body {
+        padding: 10px;
+    }
+    
+    table {
+        font-size: 11px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default date range (last 30 days)
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+    
+    if (startDateInput && !startDateInput.value) {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        startDateInput.value = thirtyDaysAgo.toISOString().split('T')[0];
+    }
+    
+    if (endDateInput && !endDateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        endDateInput.value = today;
+    }
+});
+</script>
+{% endblock %}

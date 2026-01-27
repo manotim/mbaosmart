@@ -1,0 +1,238 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Stock Take - FurniTrack Pro{% endblock %}
+
+{% block page_title %}Stock Take / Physical Count{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'sales:shop_stock_list' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Stock
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="fas fa-clipboard-check"></i> Physical Stock Count</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle"></i> Instructions</h6>
+                    <p class="mb-0">
+                        1. Select the shop you want to conduct stock take for.<br>
+                        2. Select a product from that shop.<br>
+                        3. Enter the physical count you have verified.<br>
+                        4. System will automatically adjust stock if there's a difference.
+                    </p>
+                </div>
+                
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.shop|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.product|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.physical_count|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            {{ form.notes|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <!-- Current Stock Info (will be filled by JavaScript) -->
+                    <div id="current-stock-info" class="alert alert-secondary d-none">
+                        <h6><i class="fas fa-box"></i> Current System Stock</h6>
+                        <p id="current-stock-text" class="mb-0"></p>
+                    </div>
+                    
+                    <!-- Difference Preview (will be filled by JavaScript) -->
+                    <div id="difference-preview" class="alert d-none">
+                        <h6><i class="fas fa-exchange-alt"></i> Stock Adjustment Preview</h6>
+                        <p id="difference-text" class="mb-0"></p>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-clipboard-check"></i> Submit Stock Count
+                        </button>
+                        <a href="{% url 'sales:shop_stock_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Recent Stock Adjustments -->
+        <div class="card shadow mt-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Recent Stock Adjustments</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Shop</th>
+                                <th>Product</th>
+                                <th>Type</th>
+                                <th>Quantity</th>
+                                <th>Previous</th>
+                                <th>New</th>
+                                <th>By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- This would be populated with recent StockAdjustmentShop records -->
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-3">
+                                    <i class="fas fa-history fa-2x"></i>
+                                    <p class="mt-2">No recent stock adjustments</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const shopSelect = document.getElementById('id_shop');
+    const productSelect = document.getElementById('id_product');
+    const physicalCountInput = document.getElementById('id_physical_count');
+    const currentStockInfo = document.getElementById('current-stock-info');
+    const currentStockText = document.getElementById('current-stock-text');
+    const differencePreview = document.getElementById('difference-preview');
+    const differenceText = document.getElementById('difference-text');
+    
+    // Store product stock data
+    let productStockData = {};
+    
+    // Update product choices based on shop selection
+    function updateProductChoices() {
+        const shopId = shopSelect.value;
+        
+        if (shopId) {
+            // Fetch products for this shop
+            fetch(`/api/shops/${shopId}/products/`)
+                .then(response => response.json())
+                .then(data => {
+                    // Clear current options
+                    productSelect.innerHTML = '<option value="">Select a product...</option>';
+                    
+                    // Add new options
+                    data.products.forEach(product => {
+                        const option = document.createElement('option');
+                        option.value = product.id;
+                        option.textContent = product.name;
+                        option.dataset.stock = product.stock;
+                        productSelect.appendChild(option);
+                        
+                        // Store stock data
+                        productStockData[product.id] = product.stock;
+                    });
+                    
+                    productSelect.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error fetching products:', error);
+                });
+        } else {
+            productSelect.innerHTML = '<option value="">Select a shop first...</option>';
+            productSelect.disabled = true;
+        }
+    }
+    
+    // Show current stock when product is selected
+    function showCurrentStock() {
+        const productId = productSelect.value;
+        
+        if (productId && productStockData[productId] !== undefined) {
+            const currentStock = productStockData[productId];
+            currentStockInfo.classList.remove('d-none');
+            currentStockText.textContent = `Current system stock for this product: ${currentStock} units`;
+            
+            // Enable physical count input
+            physicalCountInput.disabled = false;
+            physicalCountInput.placeholder = `Enter physical count (current: ${currentStock})`;
+        } else {
+            currentStockInfo.classList.add('d-none');
+            physicalCountInput.disabled = true;
+        }
+    }
+    
+    // Calculate and show difference
+    function calculateDifference() {
+        const productId = productSelect.value;
+        const physicalCount = parseInt(physicalCountInput.value) || 0;
+        
+        if (productId && productStockData[productId] !== undefined && physicalCount > 0) {
+            const currentStock = productStockData[productId];
+            const difference = physicalCount - currentStock;
+            
+            differencePreview.classList.remove('d-none');
+            
+            if (difference === 0) {
+                differencePreview.className = 'alert alert-success';
+                differenceText.textContent = `Perfect match! Physical count matches system records.`;
+            } else if (difference > 0) {
+                differencePreview.className = 'alert alert-info';
+                differenceText.textContent = 
+                    `Stock will be increased by ${difference} units. ` +
+                    `(${currentStock} → ${physicalCount})`;
+            } else {
+                differencePreview.className = 'alert alert-warning';
+                differenceText.textContent = 
+                    `Stock will be decreased by ${Math.abs(difference)} units. ` +
+                    `(${currentStock} → ${physicalCount})`;
+            }
+        } else {
+            differencePreview.classList.add('d-none');
+        }
+    }
+    
+    // Event listeners
+    shopSelect.addEventListener('change', function() {
+        updateProductChoices();
+        currentStockInfo.classList.add('d-none');
+        differencePreview.classList.add('d-none');
+        physicalCountInput.disabled = true;
+    });
+    
+    productSelect.addEventListener('change', function() {
+        showCurrentStock();
+        differencePreview.classList.add('d-none');
+        physicalCountInput.value = '';
+    });
+    
+    physicalCountInput.addEventListener('input', function() {
+        calculateDifference();
+    });
+    
+    // Initial setup
+    if (shopSelect.value) {
+        updateProductChoices();
+    }
+});
+</script>
+{% endblock %}

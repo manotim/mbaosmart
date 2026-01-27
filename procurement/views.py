@@ -123,6 +123,7 @@ def create_purchase_order(request):
         'title': 'Create Purchase Order'
     })
 
+
 class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = PurchaseOrder
     template_name = 'procurement/purchase_order_detail.html'

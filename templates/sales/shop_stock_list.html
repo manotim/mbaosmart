@@ -1,0 +1,305 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Shop Stock - FurniTrack Pro{% endblock %}
+
+{% block page_title %}
+{% if shop %}
+{{ shop.name }} Stock
+{% else %}
+All Shop Stock
+{% endif %}
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    {% if shop %}
+    <a href="{% url 'sales:shop_detail' pk=shop.pk %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Shop
+    </a>
+    {% else %}
+    <a href="{% url 'sales:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+    {% endif %}
+    <a href="{% url 'sales:stock_take' %}" class="btn btn-sm btn-warning">
+        <i class="fas fa-clipboard-check"></i> Stock Take
+    </a>
+    {% if shop %}
+    <a href="{% url 'sales:export_shop_stock' pk=shop.pk %}" class="btn btn-sm btn-info">
+        <i class="fas fa-file-export"></i> Export Stock List
+    </a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            {% if not shop %}
+            <div class="col-md-3">
+                <label for="shop" class="form-label">Shop</label>
+                <select name="shop" id="shop" class="form-select">
+                    <option value="">All Shops</option>
+                    {% for s in request.user.managed_shops.all %}
+                    <option value="{{ s.pk }}" {% if request.GET.shop == s.pk|stringformat:"i" %}selected{% endif %}>
+                        {{ s.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            
+            <div class="col-md-3">
+                <label for="status" class="form-label">Stock Status</label>
+                <select name="status" id="status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="low" {% if request.GET.status == 'low' %}selected{% endif %}>Low Stock</option>
+                    <option value="out" {% if request.GET.status == 'out' %}selected{% endif %}>Out of Stock</option>
+                </select>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">&nbsp;</label>
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                    <a href="{% url 'sales:shop_stock_list' %}{% if shop %}shop/{{ shop.pk }}/{% endif %}" 
+                       class="btn btn-outline-secondary">
+                        <i class="fas fa-redo"></i> Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Stock Table -->
+<div class="card shadow">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-boxes"></i> 
+            {% if shop %}
+            {{ shop.name }} Stock Inventory
+            {% else %}
+            All Shop Stock
+            {% endif %}
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if stock_items %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        {% if not shop %}
+                        <th>Shop</th>
+                        {% endif %}
+                        <th>Product</th>
+                        <th>SKU</th>
+                        <th>Category</th>
+                        <th>Current Stock</th>
+                        <th>Min Level</th>
+                        <th>Max Level</th>
+                        <th>Stock Status</th>
+                        <th>Unit Price</th>
+                        <th>Stock Value</th>
+                        <th>Last Updated</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in stock_items %}
+                    <tr>
+                        {% if not shop %}
+                        <td>
+                            <a href="{% url 'sales:shop_detail' pk=item.shop.pk %}" class="text-decoration-none">
+                                {{ item.shop.name }}
+                            </a>
+                        </td>
+                        {% endif %}
+                        <td>
+                            <strong>{{ item.product.name }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ item.product.sku }}</span>
+                        </td>
+                        <td>{{ item.product.get_product_type_display }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <span class="fw-bold me-2">{{ item.quantity }}</span>
+                                <div class="stock-level-bar" style="width: 100px;">
+                                    {% if item.max_stock_level > 0 %}
+                                    {% with percentage=item.quantity|div:item.max_stock_level|multiply:100 %}
+                                    <div class="stock-level-fill bg-{{ item.stock_status }}"
+                                         style="width: {% if percentage > 100 %}100{% else %}{{ percentage }}{% endif %}%">
+                                    </div>
+                                    {% endwith %}
+                                    {% else %}
+                                    <div class="stock-level-fill bg-{{ item.stock_status }}" style="width: 0%"></div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ item.min_stock_level }}</td>
+                        <td>{{ item.max_stock_level }}</td>
+                        <td>
+                            <span class="badge bg-{{ item.stock_status }}">
+                                {{ item.get_stock_status_display }}
+                            </span>
+                        </td>
+                        <td>Ksh {{ item.product.selling_price|intcomma }}</td>
+                        <td>
+                            <span class="fw-bold">Ksh {{ item.stock_value|intcomma }}</span>
+                        </td>
+                        <td>
+                            <small class="text-muted">
+                                {{ item.updated_at|date:"d/m/Y" }}
+                                {% if item.last_restocked %}
+                                <br><small>Restocked: {{ item.last_restocked|date:"d/m/Y" }}</small>
+                                {% endif %}
+                            </small>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'sales:stock_transfer_create' %}" class="btn btn-sm btn-outline-primary" title="Restock">
+                                    <i class="fas fa-truck"></i>
+                                </a>
+                                {% if item.needs_restocking %}
+                                <span class="badge bg-danger">Needs Restock</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        {% if not shop %}
+                        <td colspan="9" class="text-end"><strong>Total Stock Value:</strong></td>
+                        {% else %}
+                        <td colspan="8" class="text-end"><strong>Total Stock Value:</strong></td>
+                        {% endif %}
+                        <td>
+                            <strong>
+                                Ksh 
+                                {% with total=stock_items|list_sum:'stock_value' %}
+                                {{ total|intcomma }}
+                                {% endwith %}
+                            </strong>
+                        </td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <!-- Stock Summary -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card border-success">
+                    <div class="card-body">
+                        <h6 class="card-title text-success">
+                            <i class="fas fa-check-circle"></i> Normal Stock
+                        </h6>
+                        <h3 class="mb-0">
+                            {% with normal=stock_items|filter_stock_status:'normal'|length %}
+                            {{ normal }}
+                            {% endwith %}
+                        </h3>
+                        <small class="text-muted">Items with adequate stock</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-warning">
+                    <div class="card-body">
+                        <h6 class="card-title text-warning">
+                            <i class="fas fa-exclamation-triangle"></i> Low Stock
+                        </h6>
+                        <h3 class="mb-0">
+                            {% with low=stock_items|filter_stock_status:'low_stock'|length %}
+                            {{ low }}
+                            {% endwith %}
+                        </h3>
+                        <small class="text-muted">Items below minimum level</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-danger">
+                    <div class="card-body">
+                        <h6 class="card-title text-danger">
+                            <i class="fas fa-times-circle"></i> Out of Stock
+                        </h6>
+                        <h3 class="mb-0">
+                            {% with out=stock_items|filter_stock_status:'out_of_stock'|length %}
+                            {{ out }}
+                            {% endwith %}
+                        </h3>
+                        <small class="text-muted">Items with zero stock</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+            <h4>No Stock Items Found</h4>
+            <p class="text-muted">
+                {% if shop %}
+                This shop has no stock items yet.
+                {% else %}
+                No stock items found matching your criteria.
+                {% endif %}
+            </p>
+            <a href="{% url 'sales:stock_transfer_create' %}" class="btn btn-primary">
+                <i class="fas fa-truck"></i> Transfer Stock
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Custom template filters for stock calculations
+// In a real app, you would create these as custom template filters
+</script>
+
+<style>
+.stock-level-bar {
+    height: 10px;
+    border-radius: 5px;
+    background: #e9ecef;
+    overflow: hidden;
+}
+
+.stock-level-fill {
+    height: 100%;
+}
+
+.bg-out_of_stock {
+    background-color: #dc3545 !important;
+}
+
+.bg-low_stock {
+    background-color: #ffc107 !important;
+}
+
+.bg-normal {
+    background-color: #28a745 !important;
+}
+
+.bg-over_stock {
+    background-color: #17a2b8 !important;
+}
+</style>
+{% endblock %}

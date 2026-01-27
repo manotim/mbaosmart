@@ -1,0 +1,123 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }} - FurniTrack Pro{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'sales:stock_transfer_list' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Transfers
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-truck"></i> {{ title }}</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.transfer_type|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.to_shop|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row" id="from-location-row">
+                        <div class="col-md-6">
+                            {{ form.from_location|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.expected_delivery_date|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.vehicle_number|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.driver_name|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.driver_contact|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            {{ form.delivery_notes|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    {% if form.status %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.status|as_crispy_field }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Transfer
+                        </button>
+                        <a href="{% url 'sales:stock_transfer_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const transferTypeSelect = document.getElementById('id_transfer_type');
+    const fromLocationRow = document.getElementById('from-location-row');
+    const fromLocationField = document.getElementById('id_from_location').closest('.mb-3');
+    
+    // Date picker
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    dateInputs.forEach(input => {
+        if (!input.value) {
+            // Set default to tomorrow
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            input.value = tomorrow.toISOString().split('T')[0];
+        }
+    });
+    
+    // Show/hide from_location based on transfer_type
+    function toggleFromLocation() {
+        const transferType = transferTypeSelect.value;
+        
+        if (transferType === 'manufacturing_to_shop') {
+            fromLocationField.style.display = 'none';
+        } else if (transferType === 'shop_to_shop') {
+            fromLocationField.style.display = 'block';
+        }
+    }
+    
+    // Initial toggle
+    toggleFromLocation();
+    
+    // Add event listener
+    transferTypeSelect.addEventListener('change', toggleFromLocation);
+});
+</script>
+{% endblock %}

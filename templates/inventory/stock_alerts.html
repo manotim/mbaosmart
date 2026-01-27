@@ -56,10 +56,10 @@
                 {% endif %}
             </div>
             <div class="card-footer">
-                <a href="{% url 'accounts:raw_material_list' %}?stock_status=low" class="btn btn-warning">
+                <a href="{% url 'inventory:raw_material_list' %}?stock_status=low" class="btn btn-warning">
                     <i class="bi bi-exclamation-triangle"></i> View Low Stock Items
                 </a>
-                <a href="{% url 'accounts:raw_material_list' %}?stock_status=out" class="btn btn-danger ms-2">
+                <a href="{% url 'inventory:raw_material_list' %}?stock_status=out" class="btn btn-danger ms-2">
                     <i class="bi bi-exclamation-circle"></i> View Out of Stock Items
                 </a>
             </div>

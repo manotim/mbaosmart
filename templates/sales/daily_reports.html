@@ -1,0 +1,261 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Daily Sales Reports - FurniTrack Pro{% endblock %}
+
+{% block page_title %}Daily Sales Reports{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{% url 'sales:daily_report_create' %}" class="btn btn-sm btn-success">
+        <i class="fas fa-plus"></i> Create Report
+    </a>
+    <a href="{% url 'sales:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" name="start_date" id="start_date" class="form-control" 
+                       value="{{ request.GET.start_date }}">
+            </div>
+            <div class="col-md-3">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" name="end_date" id="end_date" class="form-control" 
+                       value="{{ request.GET.end_date }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">&nbsp;</label>
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                    <a href="{% url 'sales:daily_reports' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo"></i> Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reports Table -->
+<div class="card shadow">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Daily Sales Reports</h5>
+    </div>
+    <div class="card-body">
+        {% if reports %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Report Date</th>
+                        <th>Shop</th>
+                        <th class="text-end">Sales Count</th>
+                        <th class="text-end">Total Amount</th>
+                        <th class="text-end">Cash</th>
+                        <th class="text-end">M-Pesa</th>
+                        <th class="text-end">Card</th>
+                        <th class="text-end">Credit</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                    <tr>
+                        <td>
+                            <strong>{{ report.report_date }}</strong>
+                        </td>
+                        <td>{{ report.shop.name }}</td>
+                        <td class="text-end">
+                            <span class="fw-bold">{{ report.total_sales }}</span>
+                        </td>
+                        <td class="text-end">
+                            <span class="fw-bold">Ksh {{ report.total_amount|intcomma }}</span>
+                        </td>
+                        <td class="text-end">
+                            <span class="text-success">Ksh {{ report.cash_sales|intcomma }}</span>
+                        </td>
+                        <td class="text-end">
+                            <span class="text-primary">Ksh {{ report.mpesa_sales|intcomma }}</span>
+                        </td>
+                        <td class="text-end">
+                            <span class="text-warning">Ksh {{ report.card_sales|intcomma }}</span>
+                        </td>
+                        <td class="text-end">
+                            <span class="text-danger">Ksh {{ report.credit_sales|intcomma }}</span>
+                        </td>
+                        <td>
+                            <small class="text-muted">
+                                {{ report.created_at|date:"d/m/Y H:i" }}
+                            </small>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-sm btn-outline-info" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="window.print()" title="Print">
+                                    <i class="fas fa-print"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <td colspan="2" class="text-end"><strong>Totals:</strong></td>
+                        <td class="text-end">
+                            <strong>
+                                {% with total_sales=reports|list_sum:'total_sales' %}
+                                {{ total_sales }}
+                                {% endwith %}
+                            </strong>
+                        </td>
+                        <td class="text-end">
+                            <strong>
+                                Ksh 
+                                {% with total_amount=reports|list_sum:'total_amount' %}
+                                {{ total_amount|intcomma }}
+                                {% endwith %}
+                            </strong>
+                        </td>
+                        <td class="text-end">
+                            <strong class="text-success">
+                                Ksh 
+                                {% with total_cash=reports|list_sum:'cash_sales' %}
+                                {{ total_cash|intcomma }}
+                                {% endwith %}
+                            </strong>
+                        </td>
+                        <td class="text-end">
+                            <strong class="text-primary">
+                                Ksh 
+                                {% with total_mpesa=reports|list_sum:'mpesa_sales' %}
+                                {{ total_mpesa|intcomma }}
+                                {% endwith %}
+                            </strong>
+                        </td>
+                        <td class="text-end">
+                            <strong class="text-warning">
+                                Ksh 
+                                {% with total_card=reports|list_sum:'card_sales' %}
+                                {{ total_card|intcomma }}
+                                {% endwith %}
+                            </strong>
+                        </td>
+                        <td class="text-end">
+                            <strong class="text-danger">
+                                Ksh 
+                                {% with total_credit=reports|list_sum:'credit_sales' %}
+                                {{ total_credit|intcomma }}
+                                {% endwith %}
+                            </strong>
+                        </td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <!-- Summary Charts -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Payment Method Distribution</h6>
+                    </div>
+                    <div class="card-body">
+                        <div style="height: 250px; background: #f8f9fa; border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+                            <div class="text-center">
+                                <i class="fas fa-chart-pie fa-2x text-muted"></i>
+                                <p class="mt-2 mb-0">Payment Method Chart</p>
+                                <small class="text-muted">(Chart visualization)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-chart-line"></i> Daily Revenue Trend</h6>
+                    </div>
+                    <div class="card-body">
+                        <div style="height: 250px; background: #f8f9fa; border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+                            <div class="text-center">
+                                <i class="fas fa-chart-line fa-2x text-muted"></i>
+                                <p class="mt-2 mb-0">Daily Revenue Chart</p>
+                                <small class="text-muted">(Chart visualization)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+            <h4>No Daily Reports Found</h4>
+            <p class="text-muted">No daily sales reports have been generated yet.</p>
+            <a href="{% url 'sales:daily_report_create' %}" class="btn btn-info">
+                <i class="fas fa-plus"></i> Create First Report
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+/* Custom styles for report table */
+.table td {
+    vertical-align: middle;
+}
+
+/* Highlight today's report */
+.report-today {
+    background-color: rgba(40, 167, 69, 0.1) !important;
+    border-left: 4px solid #28a745;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Highlight today's report
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('tbody tr').forEach(row => {
+        const dateCell = row.querySelector('td:first-child strong');
+        if (dateCell && dateCell.textContent === today) {
+            row.classList.add('report-today');
+        }
+    });
+    
+    // Set default filter dates (last 30 days)
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+    
+    if (startDateInput && !startDateInput.value) {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        startDateInput.value = thirtyDaysAgo.toISOString().split('T')[0];
+    }
+    
+    if (endDateInput && !endDateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        endDateInput.value = today;
+    }
+});
+</script>
+{% endblock %}

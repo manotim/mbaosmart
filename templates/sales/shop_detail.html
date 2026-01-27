@@ -1,0 +1,315 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ shop.name }} - FurniTrack Pro{% endblock %}
+
+{% block page_title %}{{ shop.name }} <small class="text-muted">{{ shop.shop_code }}</small>{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{% url 'sales:shop_list' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Shops
+    </a>
+    {% if user.has_perm %}
+    <a href="{% url 'sales:shop_update' pk=shop.pk %}" class="btn btn-sm btn-warning">
+        <i class="fas fa-edit"></i> Edit Shop
+    </a>
+    {% endif %}
+    <a href="{% url 'sales:export_shop_stock' pk=shop.pk %}" class="btn btn-sm btn-info">
+        <i class="fas fa-file-export"></i> Export Stock List
+    </a>
+    <a href="{% url 'sales:sale_create' %}" class="btn btn-sm btn-success">
+        <i class="fas fa-plus"></i> New Sale
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Shop Info -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Shop Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th width="40%">Shop Code:</th>
+                        <td><strong>{{ shop.shop_code }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Type:</th>
+                        <td><span class="badge bg-info">{{ shop.get_shop_type_display }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Location:</th>
+                        <td>{{ shop.location }}</td>
+                    </tr>
+                    <tr>
+                        <th>Manager:</th>
+                        <td>
+                            {% if shop.manager %}
+                            {{ shop.manager.get_full_name|default:shop.manager.username }}
+                            {% else %}
+                            <span class="text-muted">Not assigned</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Phone:</th>
+                        <td>{{ shop.phone }}</td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>{{ shop.email|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>
+                            {% if shop.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Opened:</th>
+                        <td>{{ shop.opening_date }}</td>
+                    </tr>
+                </table>
+                
+                {% if shop.address %}
+                <div class="mt-3">
+                    <h6>Address:</h6>
+                    <p class="text-muted">{{ shop.address }}</p>
+                </div>
+                {% endif %}
+                
+                {% if shop.notes %}
+                <div class="mt-3">
+                    <h6>Notes:</h6>
+                    <p class="text-muted">{{ shop.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Statistics -->
+    <div class="col-md-8 mb-4">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="card bg-success text-white shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h5 class="card-title">Stock Value</h5>
+                                <h2 class="mb-0">Ksh {{ total_stock_value|intcomma }}</h2>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-boxes fa-3x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                <div class="card bg-warning text-dark shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h5 class="card-title">Low Stock Items</h5>
+                                <h2 class="mb-0">{{ low_stock_items }}</h2>
+                                <small>Need attention</small>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-exclamation-triangle fa-3x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                <div class="card bg-info text-white shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h5 class="card-title">Total Products</h5>
+                                <h2 class="mb-0">{{ shop.stock_items.count }}</h2>
+                                <small>In inventory</small>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-couch fa-3x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                <div class="card bg-primary text-white shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h5 class="card-title">Recent Sales</h5>
+                                <h2 class="mb-0">{{ sales|length }}</h2>
+                                <small>Last 10 transactions</small>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-receipt fa-3x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Sales -->
+        <div class="card shadow mt-3">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Recent Sales</h5>
+            </div>
+            <div class="card-body">
+                {% if sales %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Invoice</th>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th>Amount</th>
+                                <th>Payment</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in sales %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'sales:sale_detail' pk=sale.pk %}" class="text-decoration-none">
+                                        {{ sale.invoice_number }}
+                                    </a>
+                                </td>
+                                <td>{{ sale.sale_date|date:"d/m/Y H:i" }}</td>
+                                <td>{{ sale.customer_name|default:"Walk-in" }}</td>
+                                <td>Ksh {{ sale.total_amount|intcomma }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ sale.get_payment_method_display }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if sale.status == 'completed' %}success{% elif sale.status == 'pending' %}warning{% else %}danger{% endif %}">
+                                        {{ sale.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-2">
+                    <a href="{% url 'sales:sale_list' %}" class="btn btn-sm btn-outline-success">
+                        View All Sales
+                    </a>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-receipt fa-2x text-muted"></i>
+                    <p class="mt-2">No sales recorded yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Items -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-boxes"></i> Shop Stock</h5>
+                <a href="{% url 'sales:stock_take' %}" class="btn btn-sm btn-light">
+                    <i class="fas fa-clipboard-check"></i> Stock Take
+                </a>
+            </div>
+            <div class="card-body">
+                {% if stock_items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th>SKU</th>
+                                <th>Category</th>
+                                <th>Current Stock</th>
+                                <th>Min Level</th>
+                                <th>Max Level</th>
+                                <th>Stock Status</th>
+                                <th>Unit Price</th>
+                                <th>Stock Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in stock_items %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.product.name }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ item.product.sku }}</span>
+                                </td>
+                                <td>{{ item.product.get_product_type_display }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <span class="fw-bold me-2">{{ item.quantity }}</span>
+                                        <div class="stock-level-bar" style="width: 100px;">
+                                            {% with percentage=item.quantity|add:"0"|floatformat:0 %}
+                                            <div class="stock-level-fill bg-{{ item.stock_status }}"
+                                                 style="width: {% if item.max_stock_level > 0 %}{% widthratio item.quantity item.max_stock_level 100 %}{% else %}0{% endif %}%">
+                                            </div>
+                                            {% endwith %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ item.min_stock_level }}</td>
+                                <td>{{ item.max_stock_level }}</td>
+                                <td>
+                                    <span class="badge bg-{{ item.stock_status }}">
+                                        {{ item.get_stock_status_display }}
+                                    </span>
+                                </td>
+                                <td>Ksh {{ item.product.selling_price|intcomma }}</td>
+                                <td>
+                                    <span class="fw-bold">Ksh {{ item.stock_value|intcomma }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="8" class="text-end"><strong>Total Stock Value:</strong></td>
+                                <td><strong>Ksh {{ total_stock_value|intcomma }}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                    <h4>No Stock Items</h4>
+                    <p class="text-muted">This shop has no stock items yet.</p>
+                    <a href="{% url 'sales:stock_transfer_create' %}" class="btn btn-primary">
+                        <i class="fas fa-truck"></i> Transfer Stock
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

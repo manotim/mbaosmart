@@ -1,0 +1,161 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Create Daily Sales Report - FurniTrack Pro{% endblock %}
+
+{% block page_title %}Create Daily Sales Report{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'sales:daily_reports' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Reports
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Daily Sales Report</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Important</h6>
+                    <p class="mb-0">
+                        This report should be generated at the end of each business day. 
+                        It will automatically calculate totals from all completed sales for the selected date.
+                    </p>
+                </div>
+                
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.shop|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.report_date|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            {{ form.opening_balance|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            {{ form.notes|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <!-- Preview Section -->
+                    <div id="preview-section" class="alert alert-secondary d-none mt-3">
+                        <h6><i class="fas fa-eye"></i> Report Preview</h6>
+                        <div id="preview-content"></div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-info">
+                            <i class="fas fa-save"></i> Generate Report
+                        </button>
+                        <button type="button" id="preview-btn" class="btn btn-outline-secondary">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <a href="{% url 'sales:daily_reports' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const previewBtn = document.getElementById('preview-btn');
+    const previewSection = document.getElementById('preview-section');
+    const previewContent = document.getElementById('preview-content');
+    const shopSelect = document.getElementById('id_shop');
+    const reportDateInput = document.getElementById('id_report_date');
+    
+    if (previewBtn) {
+        previewBtn.addEventListener('click', function() {
+            const shopId = shopSelect.value;
+            const reportDate = reportDateInput.value;
+            
+            if (!shopId || !reportDate) {
+                alert('Please select both shop and report date first.');
+                return;
+            }
+            
+            // Show loading
+            previewContent.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading preview...</div>';
+            previewSection.classList.remove('d-none');
+            
+            // Fetch preview data
+            fetch(`/api/sales/preview-daily-report/?shop=${shopId}&date=${reportDate}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        previewContent.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                    } else {
+                        previewContent.innerHTML = `
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Shop:</strong></td>
+                                    <td>${data.shop_name}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Report Date:</strong></td>
+                                    <td>${data.report_date}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Total Sales:</strong></td>
+                                    <td>${data.total_sales}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Total Amount:</strong></td>
+                                    <td>Ksh ${data.total_amount.toLocaleString()}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Cash Sales:</strong></td>
+                                    <td>Ksh ${data.cash_sales.toLocaleString()}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>M-Pesa Sales:</strong></td>
+                                    <td>Ksh ${data.mpesa_sales.toLocaleString()}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Card Sales:</strong></td>
+                                    <td>Ksh ${data.card_sales.toLocaleString()}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Credit Sales:</strong></td>
+                                    <td>Ksh ${data.credit_sales.toLocaleString()}</td>
+                                </tr>
+                            </table>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    previewContent.innerHTML = '<div class="alert alert-danger">Failed to load preview. Please try again.</div>';
+                    console.error('Error:', error);
+                });
+        });
+    }
+    
+    // Set default report date to yesterday
+    if (reportDateInput && !reportDateInput.value) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        reportDateInput.value = yesterday.toISOString().split('T')[0];
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,146 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+{% load crispy_forms_tags %}
+
+{% block title %}Add Items to Transfer - FurniTrack Pro{% endblock %}
+
+{% block page_title %}
+Add Items to Transfer: {{ transfer.transfer_number }}
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{% url 'sales:stock_transfer_detail' pk=transfer.pk %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Transfer
+    </a>
+    <a href="{% url 'sales:stock_transfer_list' %}" class="btn btn-sm btn-outline-info">
+        <i class="fas fa-list"></i> All Transfers
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Add Item Form -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-plus-circle"></i> Add Item</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    {{ form.product|as_crispy_field }}
+                    {{ form.quantity|as_crispy_field }}
+                    {{ form.notes|as_crispy_field }}
+                    
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Add Item
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Transfer Summary -->
+                <div class="alert alert-info mt-4">
+                    <h6><i class="fas fa-info-circle"></i> Transfer Summary</h6>
+                    <p class="mb-1"><strong>To:</strong> {{ transfer.to_shop.name }}</p>
+                    <p class="mb-1"><strong>Type:</strong> {{ transfer.get_transfer_type_display }}</p>
+                    <p class="mb-1"><strong>Items:</strong> {{ items|length }}</p>
+                    <p class="mb-0"><strong>Status:</strong> 
+                        <span class="badge bg-{% if transfer.status == 'pending' %}warning{% elif transfer.status == 'in_transit' %}info{% else %}success{% endif %}">
+                            {{ transfer.get_status_display }}
+                        </span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Current Items -->
+    <div class="col-md-8 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-boxes"></i> Transfer Items</h5>
+                <span class="badge bg-light text-dark">{{ items|length }} items</span>
+            </div>
+            <div class="card-body">
+                {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th>SKU</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Total Value</th>
+                                <th>Notes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.product.name }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ item.product.sku }}</span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold">{{ item.quantity }}</span>
+                                </td>
+                                <td>Ksh {{ item.product.selling_price|intcomma }}</td>
+                                <td>
+                                    <span class="fw-bold">Ksh {{ item.item_value|intcomma }}</span>
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ item.notes|default:"-" }}</small>
+                                </td>
+                                <td>
+                                    <a href="{% url 'sales:stock_transfer_item_delete' pk=transfer.pk item_pk=item.pk %}" 
+                                       class="btn btn-sm btn-outline-danger"
+                                       onclick="return confirm('Are you sure you want to remove this item?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="4" class="text-end"><strong>Total Value:</strong></td>
+                                <td><strong>Ksh {{ transfer.total_value|intcomma }}</strong></td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="d-flex justify-content-between mt-4">
+                    <div>
+                        <a href="{% url 'sales:stock_transfer_detail' pk=transfer.pk %}" class="btn btn-primary">
+                            <i class="fas fa-check-circle"></i> Complete & View Transfer
+                        </a>
+                    </div>
+                    <div>
+                        <a href="{% url 'sales:stock_transfer_list' %}" class="btn btn-outline-secondary">
+                            Save & Exit
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                    <h4>No Items Added Yet</h4>
+                    <p class="text-muted">Start adding items to this transfer using the form on the left.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,389 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Sale {{ sale.invoice_number }} - FurniTrack Pro{% endblock %}
+
+{% block page_title %}
+Sale: {{ sale.invoice_number }}
+<small class="text-muted">{{ sale.shop.name }}</small>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{% url 'sales:sale_list' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Sales
+    </a>
+    
+    {% if sale.status == 'pending' and user.has_perm or sale.shop.manager == user %}
+    <a href="{% url 'sales:sale_complete' pk=sale.pk %}" class="btn btn-sm btn-success">
+        <i class="fas fa-check-circle"></i> Complete Sale
+    </a>
+    {% endif %}
+    
+    <button class="btn btn-sm btn-info" onclick="window.print()">
+        <i class="fas fa-print"></i> Print Receipt
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Sale Info -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Sale Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th width="40%">Invoice No:</th>
+                        <td><strong>{{ sale.invoice_number }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Shop:</th>
+                        <td>{{ sale.shop.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Date & Time:</th>
+                        <td>{{ sale.sale_date|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>
+                            {% if sale.status == 'pending' %}
+                            <span class="badge bg-warning">{{ sale.get_status_display }}</span>
+                            {% elif sale.status == 'completed' %}
+                            <span class="badge bg-success">{{ sale.get_status_display }}</span>
+                            {% elif sale.status == 'cancelled' %}
+                            <span class="badge bg-danger">{{ sale.get_status_display }}</span>
+                            {% else %}
+                            <span class="badge bg-info">{{ sale.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Customer:</th>
+                        <td>{{ sale.customer_name|default:"Walk-in Customer" }}</td>
+                    </tr>
+                    {% if sale.customer_phone %}
+                    <tr>
+                        <th>Phone:</th>
+                        <td>{{ sale.customer_phone }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <th>Sold By:</th>
+                        <td>{{ sale.sold_by.get_full_name|default:sale.sold_by.username }}</td>
+                    </tr>
+                    <tr>
+                        <th>Payment Method:</th>
+                        <td>
+                            <span class="badge bg-{% if sale.payment_method == 'cash' %}success{% elif sale.payment_method == 'mpesa' %}info{% elif sale.payment_method == 'card' %}warning{% else %}secondary{% endif %}">
+                                {{ sale.get_payment_method_display }}
+                            </span>
+                        </td>
+                    </tr>
+                </table>
+                
+                <!-- Payment Summary -->
+                <div class="alert alert-secondary mt-3">
+                    <div class="d-flex justify-content-between">
+                        <strong>Subtotal:</strong>
+                        <span>Ksh {{ sale.subtotal|intcomma }}</span>
+                    </div>
+                    {% if sale.discount_amount > 0 %}
+                    <div class="d-flex justify-content-between">
+                        <strong>Discount:</strong>
+                        <span class="text-success">- Ksh {{ sale.discount_amount|intcomma }}</span>
+                    </div>
+                    {% endif %}
+                    {% if sale.tax_amount > 0 %}
+                    <div class="d-flex justify-content-between">
+                        <strong>Tax:</strong>
+                        <span>+ Ksh {{ sale.tax_amount|intcomma }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="d-flex justify-content-between">
+                        <strong>Total Amount:</strong>
+                        <span class="fw-bold">Ksh {{ sale.total_amount|intcomma }}</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <strong>Amount Paid:</strong>
+                        <span class="text-success">Ksh {{ sale.amount_paid|intcomma }}</span>
+                    </div>
+                    {% if sale.balance > 0 %}
+                    <div class="d-flex justify-content-between">
+                        <strong>Balance:</strong>
+                        <span class="text-danger fw-bold">Ksh {{ sale.balance|intcomma }}</span>
+                    </div>
+                    {% else %}
+                    <div class="d-flex justify-content-between">
+                        <strong>Balance:</strong>
+                        <span class="text-success fw-bold">Ksh 0</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Add Payment (if balance exists) -->
+                {% if sale.balance > 0 and sale.status == 'completed' %}
+                <div class="mt-3">
+                    <form method="post" action="{% url 'sales:sale_add_payment' pk=sale.pk %}">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <input type="number" name="amount" class="form-control" 
+                                   placeholder="Payment amount" min="1" max="{{ sale.balance }}" 
+                                   step="0.01" required>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-money-bill-wave"></i> Add Payment
+                            </button>
+                        </div>
+                        <small class="text-muted">Maximum: Ksh {{ sale.balance|intcomma }}</small>
+                    </form>
+                </div>
+                {% endif %}
+                
+                {% if sale.notes %}
+                <div class="mt-3">
+                    <h6>Notes:</h6>
+                    <p class="text-muted">{{ sale.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sale Items -->
+    <div class="col-md-8 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-boxes"></i> Sale Items</h5>
+                {% if sale.status == 'pending' and user.has_perm or sale.shop.manager == user %}
+                <a href="{% url 'sales:sale_items' pk=sale.pk %}" class="btn btn-sm btn-light">
+                    <i class="fas fa-plus"></i> Add Items
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Product</th>
+                                <th>SKU</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Discount %</th>
+                                <th>Total Price</th>
+                                {% if sale.status == 'pending' %}
+                                <th>Actions</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <strong>{{ item.product.name }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ item.product.sku }}</span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold">{{ item.quantity }}</span>
+                                </td>
+                                <td>Ksh {{ item.unit_price|intcomma }}</td>
+                                <td>
+                                    {% if item.discount_percentage > 0 %}
+                                    <span class="text-success">{{ item.discount_percentage }}%</span>
+                                    {% else %}
+                                    <span class="text-muted">0%</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="fw-bold">Ksh {{ item.total_price|intcomma }}</span>
+                                </td>
+                                {% if sale.status == 'pending' and user.has_perm or sale.shop.manager == user %}
+                                <td>
+                                    <a href="{% url 'sales:sale_item_delete' pk=sale.pk item_pk=item.pk %}" 
+                                       class="btn btn-sm btn-outline-danger"
+                                       onclick="return confirm('Are you sure you want to remove this item?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="{% if sale.status == 'pending' %}7{% else %}6{% endif %}" class="text-end">
+                                    <strong>Subtotal:</strong>
+                                </td>
+                                <td><strong>Ksh {{ sale.subtotal|intcomma }}</strong></td>
+                            </tr>
+                            {% if sale.discount_amount > 0 %}
+                            <tr>
+                                <td colspan="{% if sale.status == 'pending' %}7{% else %}6{% endif %}" class="text-end">
+                                    <strong class="text-success">Discount:</strong>
+                                </td>
+                                <td><strong class="text-success">- Ksh {{ sale.discount_amount|intcomma }}</strong></td>
+                            </tr>
+                            {% endif %}
+                            {% if sale.tax_amount > 0 %}
+                            <tr>
+                                <td colspan="{% if sale.status == 'pending' %}7{% else %}6{% endif %}" class="text-end">
+                                    <strong>Tax:</strong>
+                                </td>
+                                <td><strong>+ Ksh {{ sale.tax_amount|intcomma }}</strong></td>
+                            </tr>
+                            {% endif %}
+                            <tr class="table-active">
+                                <td colspan="{% if sale.status == 'pending' %}7{% else %}6{% endif %}" class="text-end">
+                                    <strong>Total Amount:</strong>
+                                </td>
+                                <td><strong class="text-primary">Ksh {{ sale.total_amount|intcomma }}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                <!-- Sale Actions -->
+                {% if sale.status == 'pending' %}
+                <div class="alert alert-warning mt-3">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Sale is Pending</h6>
+                    <p class="mb-2">This sale has not been completed yet. Items have not been deducted from stock.</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small>Complete the sale to update stock levels and finalize the transaction.</small>
+                        <a href="{% url 'sales:sale_complete' pk=sale.pk %}" class="btn btn-success">
+                            <i class="fas fa-check-circle"></i> Complete Sale
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                    <h4>No Items Added</h4>
+                    <p class="text-muted">This sale has no items yet.</p>
+                    {% if sale.status == 'pending' and user.has_perm or sale.shop.manager == user %}
+                    <a href="{% url 'sales:sale_items' pk=sale.pk %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Items
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Receipt (Print Version) -->
+        <div class="card shadow mt-4 d-print-block d-none">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <h4 class="mb-0">{{ sale.shop.name }}</h4>
+                    <p class="text-muted mb-1">{{ sale.shop.location }}</p>
+                    <p class="text-muted mb-3">{{ sale.shop.phone }}</p>
+                    <h5 class="mb-0">SALES RECEIPT</h5>
+                    <p class="mb-0">{{ sale.invoice_number }}</p>
+                    <p class="text-muted">{{ sale.sale_date|date:"d/m/Y H:i" }}</p>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <p class="mb-1"><strong>Customer:</strong> {{ sale.customer_name|default:"Walk-in" }}</p>
+                        {% if sale.customer_phone %}
+                        <p class="mb-1"><strong>Phone:</strong> {{ sale.customer_phone }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-6 text-end">
+                        <p class="mb-1"><strong>Sold By:</strong> {{ sale.sold_by.get_full_name|default:sale.sold_by.username }}</p>
+                        <p class="mb-1"><strong>Payment:</strong> {{ sale.get_payment_method_display }}</p>
+                    </div>
+                </div>
+                
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th class="text-end">Qty</th>
+                            <th class="text-end">Price</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>{{ item.product.name }}</td>
+                            <td class="text-end">{{ item.quantity }}</td>
+                            <td class="text-end">{{ item.unit_price|intcomma }}</td>
+                            <td class="text-end">{{ item.total_price|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
+                            <td class="text-end"><strong>{{ sale.subtotal|intcomma }}</strong></td>
+                        </tr>
+                        {% if sale.discount_amount > 0 %}
+                        <tr>
+                            <td colspan="3" class="text-end"><strong>Discount:</strong></td>
+                            <td class="text-end text-success"><strong>- {{ sale.discount_amount|intcomma }}</strong></td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                            <td class="text-end"><strong>{{ sale.total_amount|intcomma }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" class="text-end"><strong>Paid:</strong></td>
+                            <td class="text-end text-success"><strong>{{ sale.amount_paid|intcomma }}</strong></td>
+                        </tr>
+                        {% if sale.balance > 0 %}
+                        <tr>
+                            <td colspan="3" class="text-end"><strong>Balance:</strong></td>
+                            <td class="text-end text-danger"><strong>{{ sale.balance|intcomma }}</strong></td>
+                        </tr>
+                        {% endif %}
+                    </tfoot>
+                </table>
+                
+                <div class="text-center mt-4">
+                    <p class="text-muted mb-2">Thank you for your business!</p>
+                    <p class="text-muted small">This is a computer generated receipt</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .navbar, .sidebar, .btn-group, .card-header, .alert, .d-print-none {
+        display: none !important;
+    }
+    
+    .d-print-block {
+        display: block !important;
+    }
+    
+    body {
+        font-size: 12px;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: none;
+    }
+    
+    .card-body {
+        padding: 10px;
+    }
+}
+</style>
+{% endblock %}

@@ -37,7 +37,8 @@ INSTALLED_APPS = [
     'reporting',
     'hr.apps.HrConfig',
     'django.contrib.humanize',
-
+     'sales',
+     'mathfilters',
 ]
 
 MIDDLEWARE = [

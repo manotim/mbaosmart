@@ -22,6 +22,8 @@ urlpatterns = [
     path('inventory/', include('inventory.urls')),
     # HR URLS
     path('hr/', include('hr.urls')),
+
+    path('sales/', include('sales.urls')),
 ]
 # Serve media files during development
 if settings.DEBUG:

@@ -1,15 +1,17 @@
+# inventory/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib import messages
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
-from django.db.models import Sum, Count, Q, F, Value, DecimalField
+from django.db.models import Sum, Count, Q, F, Value, DecimalField, ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from datetime import timedelta
 import json
+import csv
 
 from .models import RawMaterial, RawMaterialCategory, InventoryTransaction, StockAdjustment, StockAlert
 from .forms import (RawMaterialForm, RawMaterialCategoryForm, InventoryTransactionForm, 
@@ -33,28 +35,38 @@ class CategoryCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView
     form_class = RawMaterialCategoryForm
     template_name = 'inventory/category_form.html'
     permission_required = 'inventory.add_rawmaterialcategory'
-    success_url = reverse_lazy('accounts:category_list')
+    success_url = reverse_lazy('inventory:category_list')  # Fixed namespace
     
     def form_valid(self, form):
         messages.success(self.request, 'Category created successfully!')
         return super().form_valid(form)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Add New Category'
+        return context
 
 class CategoryUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = RawMaterialCategory
     form_class = RawMaterialCategoryForm
     template_name = 'inventory/category_form.html'
     permission_required = 'inventory.change_rawmaterialcategory'
-    success_url = reverse_lazy('accounts:category_list')
+    success_url = reverse_lazy('inventory:category_list')  # Fixed namespace
     
     def form_valid(self, form):
         messages.success(self.request, 'Category updated successfully!')
         return super().form_valid(form)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Edit Category'
+        return context
 
 class CategoryDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = RawMaterialCategory
     template_name = 'inventory/category_confirm_delete.html'
     permission_required = 'inventory.delete_rawmaterialcategory'
-    success_url = reverse_lazy('accounts:category_list')
+    success_url = reverse_lazy('inventory:category_list')  # Fixed namespace
     
     def delete(self, request, *args, **kwargs):
         messages.success(request, 'Category deleted successfully!')
@@ -89,7 +101,10 @@ class RawMaterialListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
         stock_status = self.request.GET.get('stock_status', '')
         if stock_status:
             if stock_status == 'low':
-                queryset = queryset.filter(current_stock__lte=F('min_stock_level'))
+                queryset = queryset.filter(
+                    current_stock__gt=0,
+                    current_stock__lte=F('min_stock_level')
+                )
             elif stock_status == 'out':
                 queryset = queryset.filter(current_stock__lte=0)
             elif stock_status == 'normal':
@@ -98,10 +113,26 @@ class RawMaterialListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
                     current_stock__lt=F('max_stock_level')
                 )
         
-        # Annotate with total value
+        # Annotate with total value using a different name to avoid conflict
         queryset = queryset.annotate(
-            total_value=Coalesce(F('current_stock') * F('unit_price'), Value(0), output_field=DecimalField())
+            calculated_value=ExpressionWrapper(
+                F('current_stock') * F('unit_price'),
+                output_field=DecimalField(max_digits=20, decimal_places=2)
+            )
         )
+        
+        # Handle sorting
+        order_by = self.request.GET.get('order_by', 'name')
+        if order_by == 'total_value':
+            queryset = queryset.order_by('-calculated_value')
+        elif order_by == '-total_value':
+            queryset = queryset.order_by('calculated_value')
+        elif order_by in ['name', 'code', 'current_stock', 'unit_price']:
+            queryset = queryset.order_by(order_by)
+        elif order_by == 'category':
+            queryset = queryset.order_by('category__name', 'name')
+        else:
+            queryset = queryset.order_by('name')
         
         return queryset.select_related('category', 'supplier')
     
@@ -111,18 +142,26 @@ class RawMaterialListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
         context['search_query'] = self.request.GET.get('search', '')
         context['selected_category'] = self.request.GET.get('category', '')
         context['selected_status'] = self.request.GET.get('stock_status', '')
+        context['order_by'] = self.request.GET.get('order_by', 'name')
         
-        # Calculate totals
-        context['total_items'] = self.get_queryset().count()
-        context['total_value'] = self.get_queryset().aggregate(
-            total=Sum(F('current_stock') * F('unit_price'))
-        )['total'] or 0
+        # Calculate totals using Python (since we can't use property in aggregation)
+        queryset = self.get_queryset()
+        context['total_items'] = queryset.count()
+        
+        # Calculate total value in Python
+        total_value = 0
+        for material in queryset:
+            try:
+                total_value += float(material.current_stock) * float(material.unit_price)
+            except (TypeError, ValueError):
+                pass
+        context['total_value'] = total_value
         
         # Stock status counts
         all_materials = RawMaterial.objects.all()
         context['low_stock_count'] = all_materials.filter(
-            current_stock__lte=F('min_stock_level'), 
-            current_stock__gt=0
+            current_stock__gt=0,
+            current_stock__lte=F('min_stock_level')
         ).count()
         context['out_of_stock_count'] = all_materials.filter(current_stock__lte=0).count()
         context['normal_stock_count'] = all_materials.filter(
@@ -137,7 +176,7 @@ class RawMaterialCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
     form_class = RawMaterialForm
     template_name = 'inventory/raw_material_form.html'
     permission_required = 'inventory.add_rawmaterial'
-    success_url = reverse_lazy('inventory:raw_material_list')
+    success_url = reverse_lazy('inventory:raw_material_list')  # Fixed namespace
     
     def form_valid(self, form):
         form.instance.created_by = self.request.user
@@ -154,7 +193,7 @@ class RawMaterialUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
     form_class = RawMaterialForm
     template_name = 'inventory/raw_material_form.html'
     permission_required = 'inventory.change_rawmaterial'
-    success_url = reverse_lazy('accounts:raw_material_list')
+    success_url = reverse_lazy('inventory:raw_material_list')  # Fixed namespace
     
     def form_valid(self, form):
         messages.success(self.request, 'Raw material updated successfully!')
@@ -174,7 +213,7 @@ class RawMaterialDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailV
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['transactions'] = self.object.transactions.all()[:50]
-        context['stock_value'] = self.object.current_stock * self.object.unit_price
+        context['stock_value'] = self.object.total_value
         
         # Get recent purchase orders for this material
         context['recent_purchases'] = PurchaseOrder.objects.filter(
@@ -191,11 +230,11 @@ def delete_raw_material(request, pk):
     # Check if material is used in any transactions
     if material.transactions.exists():
         messages.error(request, 'Cannot delete raw material that has transaction history.')
-        return redirect('accounts:raw_material_detail', pk=pk)
+        return redirect('inventory:raw_material_detail', pk=pk)  # Fixed namespace
     
     material.delete()
     messages.success(request, 'Raw material deleted successfully!')
-    return redirect('accounts:raw_material_list')
+    return redirect('inventory:raw_material_list')  # Fixed namespace
 
 # Inventory Transaction Views
 class InventoryTransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -254,10 +293,15 @@ def create_inventory_transaction(request):
         if form.is_valid():
             transaction = form.save(commit=False)
             transaction.created_by = request.user
+            
+            # Calculate total value if not provided
+            if not transaction.total_value and transaction.unit_price:
+                transaction.total_value = transaction.quantity * transaction.unit_price
+            
             transaction.save()
             
             messages.success(request, 'Inventory transaction recorded successfully!')
-            return redirect('accounts:transaction_list')
+            return redirect('inventory:transaction_list')  # Fixed namespace
     else:
         form = InventoryTransactionForm()
     
@@ -278,7 +322,7 @@ def adjust_stock(request):
             adjustment.save()
             
             messages.success(request, 'Stock adjusted successfully!')
-            return redirect('accounts:adjustment_list')
+            return redirect('inventory:adjustment_list')  # Fixed namespace
     else:
         form = StockAdjustmentForm()
     
@@ -322,7 +366,7 @@ def transfer_stock(request):
             # Check if enough stock exists
             if raw_material.current_stock < quantity:
                 messages.error(request, f'Insufficient stock. Only {raw_material.current_stock} {raw_material.unit} available.')
-                return redirect('accounts:transfer_stock')
+                return redirect('inventory:transfer_stock')  # Fixed namespace
             
             # Create outgoing transaction
             InventoryTransaction.objects.create(
@@ -335,7 +379,7 @@ def transfer_stock(request):
             )
             
             messages.success(request, 'Stock transfer completed successfully!')
-            return redirect('accounts:transaction_list')
+            return redirect('inventory:transaction_list')  # Fixed namespace
     else:
         form = StockTransferForm()
     
@@ -343,6 +387,7 @@ def transfer_stock(request):
         'form': form,
         'title': 'Transfer Stock'
     })
+
 
 # Stock Alert Views
 @login_required
@@ -352,8 +397,8 @@ def stock_alerts(request):
     
     # Auto-create low stock alerts
     low_stock_materials = RawMaterial.objects.filter(
-        current_stock__lte=F('min_stock_level'),
-        current_stock__gt=0
+        current_stock__gt=0,
+        current_stock__lte=F('min_stock_level')
     )
     
     for material in low_stock_materials:
@@ -401,24 +446,14 @@ def acknowledge_alert(request, alert_id):
         
         messages.success(request, 'Alert acknowledged successfully!')
     
-    return redirect('accounts:stock_alerts')
+    return redirect('inventory:stock_alerts')  # Fixed namespace
 
 # Reports and Dashboard Views
 @login_required
 @permission_required('inventory.view_rawmaterial')
 def inventory_dashboard(request):
-    # Summary statistics
-    total_materials = RawMaterial.objects.count()
-    low_stock_count = RawMaterial.objects.filter(
-        current_stock__lte=F('min_stock_level'),
-        current_stock__gt=0
-    ).count()
-    out_of_stock_count = RawMaterial.objects.filter(current_stock__lte=0).count()
-    
-    # Total inventory value
-    total_value = RawMaterial.objects.aggregate(
-        total=Sum(F('current_stock') * F('unit_price'))
-    )['total'] or 0
+    # Use the class method from model
+    summary = RawMaterial.get_inventory_summary()
     
     # Recent transactions
     recent_transactions = InventoryTransaction.objects.select_related(
@@ -427,22 +462,39 @@ def inventory_dashboard(request):
     
     # Low stock items
     low_stock_items = RawMaterial.objects.filter(
+        current_stock__gt=0,
         current_stock__lte=F('min_stock_level')
     ).order_by('current_stock')[:10]
     
-    # Category distribution
-    category_distribution = RawMaterial.objects.values(
-        'category__name'
-    ).annotate(
-        count=Count('id'),
-        total_value=Sum(F('current_stock') * F('unit_price'))
-    ).order_by('-total_value')
+    # Category distribution - Use property in Python instead of annotation
+    categories = RawMaterialCategory.objects.all()
+    category_distribution = []
+    
+    for category in categories:
+        materials = RawMaterial.objects.filter(category=category)
+        total_value = sum(mat.total_value for mat in materials)
+        if materials.exists() or total_value > 0:
+            category_distribution.append({
+                'category__name': category.name,
+                'count': materials.count(),
+                'total_value': total_value
+            })
+    
+    # Add uncategorized
+    uncategorized_materials = RawMaterial.objects.filter(category__isnull=True)
+    if uncategorized_materials.exists():
+        total_value = sum(mat.total_value for mat in uncategorized_materials)
+        category_distribution.append({
+            'category__name': 'Uncategorized',
+            'count': uncategorized_materials.count(),
+            'total_value': total_value
+        })
     
     context = {
-        'total_materials': total_materials,
-        'low_stock_count': low_stock_count,
-        'out_of_stock_count': out_of_stock_count,
-        'total_value': total_value,
+        'total_materials': summary['total_materials'],
+        'low_stock_count': summary['low_stock_count'],
+        'out_of_stock_count': summary['out_of_stock_count'],
+        'total_value': summary['total_value'],
         'recent_transactions': recent_transactions,
         'low_stock_items': low_stock_items,
         'category_distribution': category_distribution,
@@ -456,33 +508,71 @@ def inventory_dashboard(request):
 def stock_report(request):
     materials = RawMaterial.objects.select_related('category', 'supplier').order_by('name')
     
-    # Calculate totals
-    total_value = sum(m.current_stock * m.unit_price for m in materials)
+    # Calculate totals and status counts
+    total_value = 0
+    low_stock_count = 0
+    out_of_stock_count = 0
+    normal_stock_count = 0
+    
+    for material in materials:
+        total_value += material.total_value if hasattr(material, 'total_value') else 0
+        
+        # Calculate stock status dynamically
+        if material.current_stock <= 0:
+            out_of_stock_count += 1
+        elif (material.min_stock_level is not None and 
+              material.current_stock <= material.min_stock_level):
+            low_stock_count += 1
+        else:
+            normal_stock_count += 1
+    
+    # Calculate average unit price
+    materials_with_price = materials.exclude(unit_price=None).filter(unit_price__gt=0)
+    if materials_with_price.exists():
+        total_price = sum(m.unit_price for m in materials_with_price)
+        avg_unit_price = total_price / materials_with_price.count()
+    else:
+        avg_unit_price = 0
+    
+    # Most expensive material
+    most_expensive = materials.order_by('-unit_price').first()
+    
+    # Least expensive material
+    least_expensive = materials.exclude(unit_price=None).filter(unit_price__gt=0).order_by('unit_price').first()
     
     # Export options
     export_format = request.GET.get('export', '')
     if export_format == 'csv':
-        import csv
-        from django.http import HttpResponse
-        
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="stock_report.csv"'
+        response['Content-Disposition'] = 'attachment; filename="stock_report_{}.csv"'.format(
+            timezone.now().strftime('%Y%m%d_%H%M%S')
+        )
         
         writer = csv.writer(response)
         writer.writerow(['Code', 'Name', 'Category', 'Unit', 'Current Stock', 
-                         'Min Stock', 'Max Stock', 'Unit Price', 'Total Value', 'Location'])
+                         'Min Stock', 'Max Stock', 'Unit Price', 'Total Value', 'Status', 'Location'])
         
         for material in materials:
+            # Determine stock status for CSV
+            if material.current_stock <= 0:
+                status = 'Out of Stock'
+            elif (material.min_stock_level is not None and 
+                  material.current_stock <= material.min_stock_level):
+                status = 'Low Stock'
+            else:
+                status = 'Normal'
+            
             writer.writerow([
                 material.code,
                 material.name,
-                material.category.name,
+                material.category.name if material.category else 'Uncategorized',
                 material.get_unit_display(),
-                material.current_stock,
-                material.min_stock_level,
-                material.max_stock_level,
-                material.unit_price,
-                material.current_stock * material.unit_price,
+                float(material.current_stock),
+                float(material.min_stock_level) if material.min_stock_level else 0,
+                float(material.max_stock_level) if material.max_stock_level else 0,
+                float(material.unit_price) if material.unit_price else 0,
+                float(material.total_value) if hasattr(material, 'total_value') else 0,
+                status,
                 material.location
             ])
         
@@ -491,10 +581,17 @@ def stock_report(request):
     context = {
         'materials': materials,
         'total_value': total_value,
+        'avg_unit_price': avg_unit_price,
+        'low_stock_count': low_stock_count,
+        'out_of_stock_count': out_of_stock_count,
+        'normal_stock_count': normal_stock_count,
+        'most_expensive': most_expensive,
+        'least_expensive': least_expensive,
         'title': 'Stock Report'
     }
     
     return render(request, 'inventory/stock_report.html', context)
+
 
 # API Views for AJAX
 @login_required
@@ -510,6 +607,7 @@ def get_material_details(request, material_id):
             'unit_price': float(material.unit_price),
             'min_stock': float(material.min_stock_level),
             'max_stock': float(material.max_stock_level),
+            'total_value': float(material.total_value),
         }
         return JsonResponse(data)
     except RawMaterial.DoesNotExist:
@@ -519,8 +617,8 @@ def get_material_details(request, material_id):
 def inventory_chart_data(request):
     # Get low stock materials
     low_stock = RawMaterial.objects.filter(
-        current_stock__lte=F('min_stock_level'),
-        current_stock__gt=0
+        current_stock__gt=0,
+        current_stock__lte=F('min_stock_level')
     ).count()
     
     out_of_stock = RawMaterial.objects.filter(current_stock__lte=0).count()
@@ -536,4 +634,20 @@ def inventory_chart_data(request):
         }]
     }
     
+    return JsonResponse(data)
+
+@login_required
+def api_stock_data(request):
+    """API endpoint to get current stock data for all materials"""
+    materials = RawMaterial.objects.select_related('category').all()
+    data = {
+        str(material.id): {
+            'name': material.name,
+            'stock': float(material.current_stock),
+            'unit': material.unit,
+            'min_stock': float(material.min_stock) if material.min_stock else 0,
+            'max_stock': float(material.max_stock) if material.max_stock else 0,
+        }
+        for material in materials
+    }
     return JsonResponse(data)

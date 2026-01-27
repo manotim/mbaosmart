@@ -1,0 +1,132 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Stock Adjustments - MbaoSmart{% endblock %}
+{% block page_title %}Stock Adjustments{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Stock Adjustment History</h5>
+                    {% if perms.inventory.add_stockadjustment %}
+                    <a href="{% url 'inventory:adjustment_create' %}" class="btn btn-sm btn-success">
+                        <i class="bi bi-plus-circle"></i> New Adjustment
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <form method="get" class="row g-3">
+                            <div class="col-md-3">
+                                <input type="date" name="date_from" class="form-control" 
+                                       value="{{ date_from }}" placeholder="From Date">
+                            </div>
+                            <div class="col-md-3">
+                                <input type="date" name="date_to" class="form-control" 
+                                       value="{{ date_to }}" placeholder="To Date">
+                            </div>
+                            <div class="col-md-1">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-search"></i> Filter
+                                </button>
+                            </div>
+                            <div class="col-md-1">
+                                <a href="{% url 'inventory:adjustment_list' %}" class="btn btn-secondary w-100">
+                                    <i class="bi bi-x-circle"></i> Clear
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Material</th>
+                                <th>Type</th>
+                                <th class="text-end">Quantity</th>
+                                <th class="text-end">Previous Stock</th>
+                                <th class="text-end">New Stock</th>
+                                <th>Reason</th>
+                                <th>Adjusted By</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for adjustment in adjustments %}
+                            <tr>
+                                <td>{{ adjustment.adjusted_at|date:"d M Y H:i" }}</td>
+                                <td>{{ adjustment.raw_material.name }}</td>
+                                <td>
+                                    <span class="badge bg-{% if adjustment.adjustment_type == 'add' %}success{% elif adjustment.adjustment_type == 'remove' %}danger{% else %}info{% endif %}">
+                                        {{ adjustment.get_adjustment_type_display }}
+                                    </span>
+                                </td>
+                                <td class="text-end {% if adjustment.adjustment_type == 'add' %}text-success{% else %}text-danger{% endif %}">
+                                    {% if adjustment.adjustment_type == 'add' %}+{% else %}-{% endif %}
+                                    {{ adjustment.quantity|floatformat:2 }}
+                                </td>
+                                <td class="text-end">{{ adjustment.previous_stock|floatformat:2 }}</td>
+                                <td class="text-end fw-bold">{{ adjustment.new_stock|floatformat:2 }}</td>
+                                <td>{{ adjustment.get_reason_display }}</td>
+                                <td>{{ adjustment.adjusted_by.get_full_name|default:adjustment.adjusted_by.username }}</td>
+                                <td><small class="text-muted">{{ adjustment.notes|truncatechars:30 }}</small></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4">
+                                    <i class="bi bi-sliders display-4 text-muted"></i>
+                                    <h5 class="mt-3">No Adjustments Found</h5>
+                                    <p class="text-muted">No stock adjustments recorded yet.</p>
+                                    {% if perms.inventory.add_stockadjustment %}
+                                    <a href="{% url 'inventory:adjustment_create' %}" class="btn btn-primary">
+                                        <i class="bi bi-plus-circle"></i> Make First Adjustment
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if is_paginated %}
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                Previous
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                        <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                            <a class="page-link" href="?page={{ num }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                {{ num }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                Next
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

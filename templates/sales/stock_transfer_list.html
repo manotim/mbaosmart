@@ -1,0 +1,149 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Stock Transfers - FurniTrack Pro{% endblock %}
+
+{% block page_title %}Stock Transfers{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{% url 'sales:stock_transfer_create' %}" class="btn btn-sm btn-success">
+        <i class="fas fa-plus"></i> New Transfer
+    </a>
+    <a href="{% url 'sales:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="status" class="form-label">Status</label>
+                <select name="status" id="status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="in_transit" {% if request.GET.status == 'in_transit' %}selected{% endif %}>In Transit</option>
+                    <option value="delivered" {% if request.GET.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                    <option value="received" {% if request.GET.status == 'received' %}selected{% endif %}>Received</option>
+                    <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">&nbsp;</label>
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                    <a href="{% url 'sales:stock_transfer_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo"></i> Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Transfers Table -->
+<div class="card shadow">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-truck"></i> All Stock Transfers</h5>
+    </div>
+    <div class="card-body">
+        {% if transfers %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Transfer No.</th>
+                        <th>Type</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Items</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Initiated By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transfer in transfers %}
+                    <tr>
+                        <td>
+                            <strong>{{ transfer.transfer_number }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ transfer.get_transfer_type_display }}</span>
+                        </td>
+                        <td>
+                            {{ transfer.from_location.name|default:"Manufacturing" }}
+                        </td>
+                        <td>
+                            <strong>{{ transfer.to_shop.name }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ transfer.total_items }} items</span>
+                        </td>
+                        <td>
+                            {% if transfer.status == 'pending' %}
+                            <span class="badge bg-warning transfer-status-badge">{{ transfer.get_status_display }}</span>
+                            {% elif transfer.status == 'in_transit' %}
+                            <span class="badge bg-info transfer-status-badge">{{ transfer.get_status_display }}</span>
+                            {% elif transfer.status == 'delivered' %}
+                            <span class="badge bg-primary transfer-status-badge">{{ transfer.get_status_display }}</span>
+                            {% elif transfer.status == 'received' %}
+                            <span class="badge bg-success transfer-status-badge">{{ transfer.get_status_display }}</span>
+                            {% else %}
+                            <span class="badge bg-danger transfer-status-badge">{{ transfer.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ transfer.transfer_date|date:"d/m/Y" }}
+                            <br><small class="text-muted">{{ transfer.transfer_date|time }}</small>
+                        </td>
+                        <td>
+                            {{ transfer.initiated_by.get_full_name|default:transfer.initiated_by.username }}
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'sales:stock_transfer_detail' pk=transfer.pk %}" class="btn btn-sm btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if transfer.status == 'pending' and user.has_perm %}
+                                <a href="{% url 'sales:stock_transfer_update' pk=transfer.pk %}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                                {% if transfer.status == 'pending' or transfer.status == 'in_transit' %}
+                                <a href="{% url 'sales:stock_transfer_deliver' pk=transfer.pk %}" class="btn btn-sm btn-outline-info" title="Mark as Delivered">
+                                    <i class="fas fa-check-circle"></i>
+                                </a>
+                                {% endif %}
+                                {% if transfer.status == 'delivered' and transfer.to_shop.manager == user or user.has_perm %}
+                                <a href="{% url 'sales:stock_transfer_receive' pk=transfer.pk %}" class="btn btn-sm btn-outline-success" title="Receive Stock">
+                                    <i class="fas fa-truck-loading"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+            <h4>No Stock Transfers Found</h4>
+            <p class="text-muted">You haven't created any stock transfers yet.</p>
+            <a href="{% url 'sales:stock_transfer_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create First Transfer
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,235 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Sales - FurniTrack Pro{% endblock %}
+
+{% block page_title %}Sales{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{% url 'sales:sale_create' %}" class="btn btn-sm btn-success">
+        <i class="fas fa-plus"></i> New Sale
+    </a>
+    <a href="{% url 'sales:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+    <a href="{% url 'sales:export_sales_report' %}" class="btn btn-sm btn-info">
+        <i class="fas fa-file-export"></i> Export
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="status" class="form-label">Status</label>
+                <select name="status" id="status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                    <option value="refunded" {% if request.GET.status == 'refunded' %}selected{% endif %}>Refunded</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="start_date" class="form-label">From Date</label>
+                <input type="date" name="start_date" id="start_date" class="form-control" 
+                       value="{{ request.GET.start_date }}">
+            </div>
+            <div class="col-md-3">
+                <label for="end_date" class="form-label">To Date</label>
+                <input type="date" name="end_date" id="end_date" class="form-control" 
+                       value="{{ request.GET.end_date }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                    <a href="{% url 'sales:sale_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo"></i> Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Sales Table -->
+<div class="card shadow">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-receipt"></i> All Sales</h5>
+    </div>
+    <div class="card-body">
+        {% if sales %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Invoice No.</th>
+                        <th>Date & Time</th>
+                        <th>Shop</th>
+                        <th>Customer</th>
+                        <th>Items</th>
+                        <th>Total Amount</th>
+                        <th>Payment</th>
+                        <th>Status</th>
+                        <th>Sold By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                    <tr class="sale-item-row">
+                        <td>
+                            <strong>{{ sale.invoice_number }}</strong>
+                        </td>
+                        <td>
+                            {{ sale.sale_date|date:"d/m/Y" }}
+                            <br><small class="text-muted">{{ sale.sale_date|time }}</small>
+                        </td>
+                        <td>{{ sale.shop.name }}</td>
+                        <td>
+                            {% if sale.customer_name %}
+                            {{ sale.customer_name }}
+                            {% else %}
+                            <span class="text-muted">Walk-in</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ sale.sale_items_count }}</span>
+                        </td>
+                        <td>
+                            <span class="fw-bold">Ksh {{ sale.total_amount|intcomma }}</span>
+                            {% if sale.balance > 0 %}
+                            <br><small class="text-danger">Due: Ksh {{ sale.balance|intcomma }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge payment-method-badge bg-{% if sale.payment_method == 'cash' %}success{% elif sale.payment_method == 'mpesa' %}info{% elif sale.payment_method == 'card' %}warning{% else %}secondary{% endif %}">
+                                {{ sale.get_payment_method_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if sale.status == 'pending' %}
+                            <span class="badge bg-warning">{{ sale.get_status_display }}</span>
+                            {% elif sale.status == 'completed' %}
+                            <span class="badge bg-success">{{ sale.get_status_display }}</span>
+                            {% elif sale.status == 'cancelled' %}
+                            <span class="badge bg-danger">{{ sale.get_status_display }}</span>
+                            {% else %}
+                            <span class="badge bg-info">{{ sale.get_status_display }}</span>
+                            {% endif %}
+                            
+                            {% if not sale.is_fully_paid %}
+                            <br><small class="text-warning">Partially Paid</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ sale.sold_by.get_full_name|default:sale.sold_by.username }}
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'sales:sale_detail' pk=sale.pk %}" class="btn btn-sm btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if sale.status == 'pending' and user.has_perm or sale.shop.manager == user %}
+                                <a href="{% url 'sales:sale_complete' pk=sale.pk %}" class="btn btn-sm btn-outline-success" title="Complete Sale">
+                                    <i class="fas fa-check-circle"></i>
+                                </a>
+                                {% endif %}
+                                <a href="#" class="btn btn-sm btn-outline-info" title="Print Receipt">
+                                    <i class="fas fa-print"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <td colspan="5" class="text-end"><strong>Total:</strong></td>
+                        <td>
+                            <strong>Ksh {{ sales_total|default:0|intcomma }}</strong>
+                        </td>
+                        <td colspan="4"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        &laquo; Previous
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                            {{ num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        Next &raquo;
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+            <h4>No Sales Found</h4>
+            <p class="text-muted">No sales have been recorded yet.</p>
+            <a href="{% url 'sales:sale_create' %}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Create First Sale
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default dates for filters
+    const startDate = document.getElementById('start_date');
+    const endDate = document.getElementById('end_date');
+    
+    if (startDate && !startDate.value) {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        startDate.value = oneWeekAgo.toISOString().split('T')[0];
+    }
+    
+    if (endDate && !endDate.value) {
+        const today = new Date().toISOString().split('T')[0];
+        endDate.value = today;
+    }
+});
+</script>
+{% endblock %}

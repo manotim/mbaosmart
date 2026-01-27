@@ -3,6 +3,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from .models import Supplier, PurchaseOrder, PurchaseOrderItem, GoodsReceivedNote
 from inventory.models import RawMaterial
+from accounts.models import *
 
 class SupplierForm(forms.ModelForm):
     class Meta:

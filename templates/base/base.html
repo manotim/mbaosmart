@@ -28,30 +28,156 @@
             background-color: var(--primary-color);
             min-height: 100vh;
             color: white;
+            width: 250px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .sidebar-footer {
+            background-color: #1a252f;
+            padding: 15px;
+            border-top: 1px solid #34495e;
         }
         
         .sidebar a {
             color: #ecf0f1;
             text-decoration: none;
-            padding: 12px 15px;
             display: block;
-            border-left: 4px solid transparent;
             transition: all 0.3s ease;
         }
         
         .sidebar a:hover {
             background-color: #34495e;
-            border-left: 4px solid var(--secondary-color);
             color: white;
         }
         
-        .sidebar a.active {
+        .sidebar-header {
+            padding: 20px 15px;
+            border-bottom: 1px solid #34495e;
+            background-color: #1a252f;
+        }
+        
+        .menu-section {
+            cursor: pointer;
+            padding: 12px 15px;
+            border-bottom: 1px solid #34495e;
+            background-color: #34495e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        
+        .menu-section:hover {
+            background-color: #3d566e;
+        }
+        
+        .menu-section .toggle-icon {
+            transition: transform 0.3s;
+            font-size: 0.8rem;
+        }
+        
+        .menu-section.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+        
+        .submenu {
+            background-color: #2c3e50;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        .submenu.collapsed {
+            max-height: 0 !important;
+        }
+        
+        .menu-item {
+            padding: 10px 15px 10px 25px;
+            border-left: 4px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .menu-item:hover {
             background-color: #34495e;
             border-left: 4px solid var(--secondary-color);
         }
         
-        .content {
+        .menu-item.active {
+            background-color: #34495e;
+            border-left: 4px solid var(--secondary-color);
+        }
+        
+        .menu-item i {
+            width: 20px;
+            margin-right: 10px;
+            text-align: center;
+        }
+        
+        .user-info {
+            padding: 10px 0;
+            border-bottom: 1px solid #34495e;
+            margin-bottom: 10px;
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: #3498db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        
+        .main-content {
+            margin-left: 250px;
             padding: 20px;
+            min-height: 100vh;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 0;
+                z-index: 1000;
+                transition: width 0.3s;
+            }
+            
+            .sidebar.show {
+                width: 250px;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0,0,0,0.5);
+                z-index: 999;
+            }
+            
+            .sidebar-overlay.show {
+                display: block;
+            }
         }
         
         .stat-card {
@@ -60,26 +186,6 @@
             margin-bottom: 20px;
             color: white;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        
-        .stat-card.blue {
-            background: linear-gradient(45deg, #3498db, #2980b9);
-        }
-        
-        .stat-card.green {
-            background: linear-gradient(45deg, #27ae60, #229954);
-        }
-        
-        .stat-card.orange {
-            background: linear-gradient(45deg, #e67e22, #d35400);
-        }
-        
-        .stat-card.purple {
-            background: linear-gradient(45deg, #8e44ad, #732d91);
-        }
-        
-        .stat-card.red {
-            background: linear-gradient(45deg, #e74c3c, #c0392b);
         }
         
         .navbar-brand {
@@ -93,260 +199,311 @@
             font-size: 0.8em;
         }
         
-        .table-hover tbody tr:hover {
-            background-color: rgba(52, 152, 219, 0.1);
+        .badge-count {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+            min-width: 20px;
         }
         
-        .btn-primary {
-            background-color: var(--secondary-color);
-            border-color: var(--secondary-color);
+        /* Custom scrollbar for sidebar */
+        .sidebar-content::-webkit-scrollbar {
+            width: 6px;
         }
         
-        .btn-primary:hover {
-            background-color: #2980b9;
-            border-color: #2980b9;
+        .sidebar-content::-webkit-scrollbar-track {
+            background: #2c3e50;
+        }
+        
+        .sidebar-content::-webkit-scrollbar-thumb {
+            background: #34495e;
+            border-radius: 3px;
+        }
+        
+        .sidebar-content::-webkit-scrollbar-thumb:hover {
+            background: #3498db;
         }
     </style>
     
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar Navigation -->
-            <div class="col-md-2 col-lg-2 d-md-block sidebar collapse" id="sidebarMenu">
-                <div class="position-sticky pt-3">
-                    <div class="text-center py-4">
-                        <h4 class="text-white">MbaoSmart</h4>
-                        <small class="text-muted">Furniture ERP System</small>
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <!-- Sidebar Navigation -->
+    <div class="sidebar" id="sidebarMenu">
+        <!-- Sidebar Header -->
+        <div class="sidebar-header">
+            <h4 class="text-white mb-1">MbaoSmart</h4>
+            <small class="text-muted">Inventory Management</small>
+        </div>
+        
+        <!-- Scrollable Content -->
+        <div class="sidebar-content">
+            <!-- User Info -->
+            <div class="user-info px-3">
+                <div class="d-flex align-items-center">
+                    <div class="user-avatar">
+                        {{ request.user.get_full_name|default:request.user.username|first|upper }}
                     </div>
-                    
-                    <hr class="text-muted">
-                    
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'accounts' %}active{% endif %}" 
-                               href="{% url 'accounts:profile' %}">
-                                <i class="bi bi-speedometer2"></i> Dashboard
-                            </a>
-                        </li>
-                        
-                        {% if perms.procurement.view_purchaseorder or perms.procurement.view_supplier %}
-                        <li class="nav-item">
-                            <span class="text-muted px-3 small">PROCUREMENT</span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'procurement' and 'supplier' in request.path %}active{% endif %}" 
-                               href="{% url 'procurement:supplier_list' %}">
-                                <i class="bi bi-truck"></i> Suppliers
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'procurement' and 'purchase-order' in request.path %}active{% endif %}" 
-                               href="{% url 'procurement:purchase_order_list' %}">
-                                <i class="bi bi-file-text"></i> Purchase Orders
-                            </a>
-                        </li>
-                        {% endif %}
-                        
-                        {% if perms.inventory.view_rawmaterial %}
-                        <li class="nav-item">
-                            <span class="text-muted px-3 small">INVENTORY</span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'inventory' %}active{% endif %}" 
-                               href="{% url 'inventory:raw_material_list' %}">
-                                <i class="bi bi-box"></i> Raw Materials
-                            </a>
-                        </li>
-                        {% endif %}
-                        
-                        {% if perms.production.view_product or perms.production.view_productionorder %}
-                        <li class="nav-item">
-                            <span class="text-muted px-3 small">PRODUCTION</span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'production' and 'product' in request.path %}active{% endif %}" 
-                               href="{% url 'production:product_list' %}">
-                                <i class="bi bi-chair"></i> Products
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'production' and 'production-order' in request.path %}active{% endif %}" 
-                               href="{% url 'production:production_order_list' %}">
-                                <i class="bi bi-gear"></i> Production Orders
-                            </a>
-                        </li>
-                        {% endif %}
-                        
-                        {% if perms.sales.view_shop or perms.sales.view_sale %}
-                        <li class="nav-item">
-                            <span class="text-muted px-3 small">SALES & SHOPS</span>
-                        </li>
-                        {% endif %}
-                        
-                        {% if perms.hr.view_employee %}
-                        <li class="nav-item">
-                            <span class="text-muted px-3 small">HR & PAYROLL</span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' %}active{% endif %}" 
-                               href="{% url 'accounts:profile' %}">
-                                <i class="bi bi-people"></i> Employees
-                            </a>
-                        </li>
-                        {% endif %}
-
-                        <!-- In base/base.html navigation -->
-                        {% if perms.hr.view_employee or perms.hr.view_worklog or perms.hr.view_attendance %}
-                        <li class="nav-item">
-                            <span class="text-muted px-3 small">HR MANAGEMENT</span>
-                        </li>
-                        {% if perms.hr.view_employee %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' and 'employee' in request.path %}active{% endif %}" 
-                            href="{% url 'hr:employee_list' %}">
-                                <i class="bi bi-people"></i> Employees
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if perms.hr.view_worklog %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' and 'work-log' in request.path %}active{% endif %}" 
-                            href="{% url 'hr:worklog_list' %}">
-                                <i class="bi bi-clock-history"></i> Work Logs
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if perms.hr.view_attendance %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' and 'attendance' in request.path %}active{% endif %}" 
-                            href="{% url 'hr:attendance_list' %}">
-                                <i class="bi bi-calendar-check"></i> Attendance
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if perms.hr.view_payroll %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' and 'payroll' in request.path %}active{% endif %}" 
-                            href="{% url 'hr:payroll_list' %}">
-                                <i class="bi bi-cash-stack"></i> Payroll
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if perms.hr.view_leaveapplication %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' and 'leave' in request.path %}active{% endif %}" 
-                            href="{% url 'hr:leave_list' %}">
-                                <i class="bi bi-calendar-event"></i> Leave Applications
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% endif %}
-
-                        <!-- For Fundi users (Task Dashboard) -->
-                        {% if request.user.role == 'fundi' and perms.hr.view_worklog %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'hr' and 'task-dashboard' in request.path %}active{% endif %}" 
-                            href="{% url 'hr:task_dashboard' %}">
-                                <i class="bi bi-tools"></i> My Tasks
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if perms.production.view_productionorder %}
-                        <li class="nav-item">
-                            <span class="text-muted px-3 small">PRODUCTION</span>
-                        </li>
-
-                        <!-- Dashboard link - ONLY for Supervisor users -->
-                        {% if request.user.role == 'supervisor' or request.user.groups.filter.name == 'Supervisor'|lower %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
-                            href="{% url 'production:dashboard' %}">
-                                <i class="bi bi-speedometer2"></i> Dashboard
-                            </a>
-                        </li>
-                        {% endif %}
-
-                        <!-- Products link - Available for all with permission -->
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'production' and 'product' in request.path %}active{% endif %}" 
-                            href="{% url 'production:product_list' %}">
-                                <i class="bi bi-chair"></i> Products
-                            </a>
-                        </li>
-
-                        <!-- Production Orders link - Available for all with permission -->
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.app_name == 'production' and 'production-order' in request.path %}active{% endif %}" 
-                            href="{% url 'production:production_order_list' %}">
-                                <i class="bi bi-gear"></i> Production Orders
-                            </a>
-                        </li>
-
-                        <!-- Other production links -->
-                        {% endif %}
-                        <li class="nav-item mt-4">
-                            <div class="px-3">
-                                <small class="text-muted">Logged in as:</small>
-                                <div class="text-white">{{ request.user.get_full_name|default:request.user.username }}</div>
-                                <small class="text-muted">{{ request.user.groups.first|default:"No Role" }}</small>
-                            </div>
-                        </li>
-                    </ul>
-                    
-                    <hr class="text-muted">
-                    
-                    <div class="px-3">
-                        <a href="{% url 'accounts:profile' %}" class="btn btn-outline-light btn-sm w-100 mb-2">
-                            <i class="bi bi-person-circle"></i> Profile
-                        </a>
-                        <a href="{% url 'accounts:logout' %}" class="btn btn-danger btn-sm w-100">
-                            <i class="bi bi-box-arrow-right"></i> Logout
-                        </a>
+                    <div>
+                        <div class="text-white small">{{ request.user.get_full_name|default:request.user.username }}</div>
+                        <small class="text-muted">
+                            {% if perms.inventory %}
+                            Inventory Manager
+                            {% elif request.user.groups.all %}
+                            {{ request.user.groups.first.name }}
+                            {% else %}
+                            User
+                            {% endif %}
+                        </small>
                     </div>
                 </div>
             </div>
             
-            <!-- Main Content -->
-            <main class="col-md-10 col-lg-10 ms-sm-auto px-md-4">
-                <!-- Top Navigation Bar -->
-                <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom py-3">
-                    <div class="container-fluid">
-                        <button class="btn btn-outline-secondary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
-                            <i class="bi bi-list"></i>
-                        </button>
-                        
-                        <div class="navbar-nav me-auto">
-                            <span class="navbar-brand mb-0 h1">{% block page_title %}Dashboard{% endblock %}</span>
-                        </div>
-                        
-                        <div class="d-flex">
-                            <span class="navbar-text me-3">
-                                <i class="bi bi-calendar-check"></i> {% now "j F Y" %}
-                            </span>
-                        </div>
+            <!-- Navigation Menu -->
+            {% if perms.inventory.view_rawmaterial or perms.inventory.view_rawmaterialcategory %}
+            <!-- DASHBOARD -->
+            <div class="menu-section" data-toggle="dashboard-section">
+                <span>Dashboard</span>
+                <i class="bi bi-chevron-down toggle-icon"></i>
+            </div>
+            <div class="submenu" id="dashboard-section">
+                <a class="menu-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
+                   href="{% url 'inventory:dashboard' %}">
+                    <div>
+                        <i class="bi bi-speedometer2"></i> Dashboard
                     </div>
-                </nav>
-                
-                <!-- Messages/Alerts -->
-                {% if messages %}
-                <div class="mt-3">
-                    {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                        <i class="bi bi-info-circle me-2"></i>{{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </a>
+            </div>
+            
+            <!-- INVENTORY MANAGEMENT -->
+            <div class="menu-section" data-toggle="inventory-section">
+                <span>Inventory Management</span>
+                <i class="bi bi-chevron-down toggle-icon"></i>
+            </div>
+            <div class="submenu" id="inventory-section">
+                {% if perms.inventory.view_rawmaterial %}
+                <a class="menu-item {% if 'raw-material' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:raw_material_list' %}">
+                    <div>
+                        <i class="bi bi-box"></i> Raw Materials
                     </div>
-                    {% endfor %}
-                </div>
+                    {% with low_stock_count=low_stock_count|default:0 out_of_stock_count=out_of_stock_count|default:0 %}
+                    {% if low_stock_count > 0 or out_of_stock_count > 0 %}
+                    <span class="badge bg-danger badge-count">{{ low_stock_count|add:out_of_stock_count }}</span>
+                    {% endif %}
+                    {% endwith %}
+                </a>
                 {% endif %}
                 
-                <!-- Main Content Block -->
-                <div class="content">
-                    {% block content %}
-                    {% endblock %}
+                {% if perms.inventory.view_rawmaterialcategory %}
+                <a class="menu-item {% if 'category' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:category_list' %}">
+                    <div>
+                        <i class="bi bi-tags"></i> Categories
+                    </div>
+                </a>
+                {% endif %}
+                
+                {% if perms.inventory.add_rawmaterial %}
+                <a class="menu-item {% if 'raw_material_create' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:raw_material_create' %}">
+                    <div>
+                        <i class="bi bi-plus-circle"></i> Add New Material
+                    </div>
+                </a>
+                {% endif %}
+            </div>
+            
+            <!-- TRANSACTIONS -->
+            <div class="menu-section" data-toggle="transactions-section">
+                <span>Transactions</span>
+                <i class="bi bi-chevron-down toggle-icon"></i>
+            </div>
+            <div class="submenu" id="transactions-section">
+                {% if perms.inventory.view_inventorytransaction %}
+                <a class="menu-item {% if 'transaction' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:transaction_list' %}">
+                    <div>
+                        <i class="bi bi-arrow-left-right"></i> All Transactions
+                    </div>
+                </a>
+                {% endif %}
+                
+                {% if perms.inventory.add_inventorytransaction %}
+                <a class="menu-item {% if 'transaction_create' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:transaction_create' %}">
+                    <div>
+                        <i class="bi bi-plus-circle"></i> New Transaction
+                    </div>
+                </a>
+                {% endif %}
+            </div>
+            
+            <!-- STOCK MANAGEMENT -->
+            <div class="menu-section" data-toggle="stock-section">
+                <span>Stock Management</span>
+                <i class="bi bi-chevron-down toggle-icon"></i>
+            </div>
+            <div class="submenu" id="stock-section">
+                {% if perms.inventory.add_stockadjustment %}
+                <a class="menu-item {% if 'adjustment_create' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:adjustment_create' %}">
+                    <div>
+                        <i class="bi bi-sliders"></i> Adjust Stock
+                    </div>
+                </a>
+                {% endif %}
+                
+                {% if perms.inventory.view_stockadjustment %}
+                <a class="menu-item {% if 'adjustment' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:adjustment_list' %}">
+                    <div>
+                        <i class="bi bi-clock-history"></i> Adjustment History
+                    </div>
+                </a>
+                {% endif %}
+                
+                {% if perms.inventory.add_inventorytransaction %}
+                <a class="menu-item {% if 'transfer_stock' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:transfer_stock' %}">
+                    <div>
+                        <i class="bi bi-truck"></i> Transfer Stock
+                    </div>
+                </a>
+                {% endif %}
+            </div>
+            
+            <!-- ALERTS & REPORTS -->
+            <div class="menu-section" data-toggle="reports-section">
+                <span>Reports & Alerts</span>
+                <i class="bi bi-chevron-down toggle-icon"></i>
+            </div>
+            <div class="submenu" id="reports-section">
+                {% if perms.inventory.view_stockalert %}
+                <a class="menu-item {% if 'alert' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:stock_alerts' %}">
+                    <div>
+                        <i class="bi bi-bell"></i> Stock Alerts
+                    </div>
+                    {% if active_alerts_count > 0 %}
+                    <span class="badge bg-warning badge-count">{{ active_alerts_count }}</span>
+                    {% endif %}
+                </a>
+                {% endif %}
+                
+                {% if perms.inventory.view_rawmaterial %}
+                <a class="menu-item {% if 'stock_report' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:stock_report' %}">
+                    <div>
+                        <i class="bi bi-file-text"></i> Stock Report
+                    </div>
+                </a>
+                {% endif %}
+            </div>
+            
+            {% endif %}
+            
+            <!-- SYSTEM -->
+            <div class="menu-section" data-toggle="system-section">
+                <span>System</span>
+                <i class="bi bi-chevron-down toggle-icon"></i>
+            </div>
+            <div class="submenu" id="system-section">
+                <a class="menu-item {% if request.resolver_match.app_name == 'accounts' %}active{% endif %}" 
+                   href="{% url 'accounts:profile' %}">
+                    <div>
+                        <i class="bi bi-person"></i> My Profile
+                    </div>
+                </a>
+            </div>
+        </div>
+        
+        <!-- Sidebar Footer with Logout -->
+        <div class="sidebar-footer">
+            <a href="{% url 'accounts:logout' %}" class="btn btn-danger btn-sm w-100">
+                <i class="bi bi-box-arrow-right me-2"></i> Logout
+            </a>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Top Navigation Bar -->
+        <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom py-3 mb-4">
+            <div class="container-fluid">
+                <!-- Mobile Toggle Button -->
+                <button class="btn btn-outline-secondary d-md-none" type="button" id="sidebarToggle">
+                    <i class="bi bi-list"></i>
+                </button>
+                
+                <!-- Page Title -->
+                <div class="navbar-nav me-auto">
+                    <span class="navbar-brand mb-0 h1">
+                        {% block page_title %}
+                        {% if request.resolver_match.url_name == 'dashboard' %}Inventory Dashboard
+                        {% elif request.resolver_match.url_name == 'raw_material_list' %}Raw Materials
+                        {% elif request.resolver_match.url_name == 'category_list' %}Categories
+                        {% elif request.resolver_match.url_name == 'transaction_list' %}Transactions
+                        {% elif request.resolver_match.url_name == 'adjustment_list' %}Stock Adjustments
+                        {% elif request.resolver_match.url_name == 'stock_alerts' %}Stock Alerts
+                        {% elif request.resolver_match.url_name == 'stock_report' %}Stock Report
+                        {% else %}{{ title|default:"Inventory" }}
+                        {% endif %}
+                        {% endblock %}
+                    </span>
                 </div>
-            </main>
+                
+                <!-- Date and Quick Actions -->
+                <div class="d-flex align-items-center">
+                    <span class="navbar-text me-3 d-none d-md-block">
+                        <i class="bi bi-calendar-check me-1"></i> {% now "j F Y" %}
+                    </span>
+                    
+                    <!-- Quick Actions -->
+                    {% if perms.inventory.add_rawmaterial %}
+                    <a href="{% url 'inventory:raw_material_create' %}" class="btn btn-primary btn-sm me-2">
+                        <i class="bi bi-plus-circle me-1"></i> New Material
+                    </a>
+                    {% endif %}
+                    
+                    {% if perms.inventory.view_stockalert %}
+                    <a href="{% url 'inventory:stock_alerts' %}" class="btn btn-warning btn-sm position-relative">
+                        <i class="bi bi-bell me-1"></i> Alerts
+                        {% if active_alerts_count > 0 %}
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            {{ active_alerts_count }}
+                            <span class="visually-hidden">unread alerts</span>
+                        </span>
+                        {% endif %}
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Messages/Alerts -->
+        {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                <i class="bi 
+                {% if message.tags == 'success' %}bi-check-circle
+                {% elif message.tags == 'warning' %}bi-exclamation-triangle
+                {% elif message.tags == 'error' or message.tags == 'danger' %}bi-x-circle
+                {% else %}bi-info-circle{% endif %}
+                me-2"></i>{{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Main Content Block -->
+        <div class="container-fluid">
+            {% block content %}
+            {% endblock %}
         </div>
     </div>
     
@@ -355,17 +512,82 @@
     
     <!-- Custom JS -->
     <script>
-        // Auto-dismiss alerts after 5 seconds
-        setTimeout(function() {
-            var alerts = document.querySelectorAll('.alert');
-            alerts.forEach(function(alert) {
-                var bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            });
-        }, 5000);
-        
-        // Confirm before critical actions
         document.addEventListener('DOMContentLoaded', function() {
+            // Mobile sidebar toggle
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebarMenu = document.getElementById('sidebarMenu');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebarMenu.classList.toggle('show');
+                    sidebarOverlay.classList.toggle('show');
+                });
+            }
+            
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', function() {
+                    sidebarMenu.classList.remove('show');
+                    sidebarOverlay.classList.remove('show');
+                });
+            }
+            
+            // Toggle collapsible sections
+            const menuSections = document.querySelectorAll('.menu-section');
+            
+            menuSections.forEach(section => {
+                section.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-toggle');
+                    const targetSubmenu = document.getElementById(targetId);
+                    
+                    if (targetSubmenu) {
+                        // Toggle collapsed class on section
+                        this.classList.toggle('collapsed');
+                        
+                        // Toggle collapsed class on submenu
+                        targetSubmenu.classList.toggle('collapsed');
+                        
+                        // Calculate and set max-height for smooth animation
+                        if (!targetSubmenu.classList.contains('collapsed')) {
+                            targetSubmenu.style.maxHeight = targetSubmenu.scrollHeight + 'px';
+                        } else {
+                            targetSubmenu.style.maxHeight = '0px';
+                        }
+                    }
+                });
+                
+                // Initialize with sections expanded by default
+                const targetId = section.getAttribute('data-toggle');
+                const targetSubmenu = document.getElementById(targetId);
+                if (targetSubmenu) {
+                    // Expand by default
+                    targetSubmenu.style.maxHeight = targetSubmenu.scrollHeight + 'px';
+                }
+            });
+            
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', function(event) {
+                const isClickInsideSidebar = sidebarMenu.contains(event.target);
+                const isClickOnToggle = sidebarToggle ? sidebarToggle.contains(event.target) : false;
+                
+                if (!isClickInsideSidebar && !isClickOnToggle && window.innerWidth < 768) {
+                    sidebarMenu.classList.remove('show');
+                    if (sidebarOverlay) {
+                        sidebarOverlay.classList.remove('show');
+                    }
+                }
+            });
+            
+            // Auto-dismiss alerts after 5 seconds
+            setTimeout(function() {
+                var alerts = document.querySelectorAll('.alert');
+                alerts.forEach(function(alert) {
+                    var bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                });
+            }, 5000);
+            
+            // Confirm before critical actions
             var deleteButtons = document.querySelectorAll('.confirm-delete');
             deleteButtons.forEach(function(button) {
                 button.addEventListener('click', function(e) {
@@ -373,6 +595,44 @@
                         e.preventDefault();
                     }
                 });
+            });
+            
+            // Active link highlighting based on current URL
+            function setActiveNavLink() {
+                const currentPath = window.location.pathname;
+                const menuItems = document.querySelectorAll('.menu-item');
+                
+                menuItems.forEach(item => {
+                    const href = item.getAttribute('href');
+                    if (href && currentPath.startsWith(href)) {
+                        menuItems.forEach(i => i.classList.remove('active'));
+                        item.classList.add('active');
+                        
+                        // Also expand the parent section
+                        const parentSection = item.closest('.submenu');
+                        if (parentSection) {
+                            const sectionId = parentSection.id;
+                            const menuSection = document.querySelector(`[data-toggle="${sectionId}"]`);
+                            if (menuSection && parentSection.classList.contains('collapsed')) {
+                                menuSection.classList.remove('collapsed');
+                                parentSection.classList.remove('collapsed');
+                                parentSection.style.maxHeight = parentSection.scrollHeight + 'px';
+                            }
+                        }
+                    }
+                });
+            }
+            
+            setActiveNavLink();
+            
+            // Resize handler
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 768) {
+                    sidebarMenu.classList.remove('show');
+                    if (sidebarOverlay) {
+                        sidebarOverlay.classList.remove('show');
+                    }
+                }
             });
         });
     </script>

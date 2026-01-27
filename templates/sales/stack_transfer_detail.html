@@ -1,0 +1,446 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Stock Transfer {{ transfer.transfer_number }} - FurniTrack Pro{% endblock %}
+
+{% block page_title %}
+Stock Transfer: {{ transfer.transfer_number }}
+<small class="text-muted">{{ transfer.get_transfer_type_display }}</small>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{% url 'sales:stock_transfer_list' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Transfers
+    </a>
+    
+    {% if transfer.status == 'pending' or transfer.status == 'in_transit' %}
+        {% if user.has_perm %}
+        <a href="{% url 'sales:stock_transfer_update' pk=transfer.pk %}" class="btn btn-sm btn-warning">
+            <i class="fas fa-edit"></i> Edit Transfer
+        </a>
+        {% endif %}
+        
+        {% if user.has_perm %}
+        <a href="{% url 'sales:stock_transfer_deliver' pk=transfer.pk %}" class="btn btn-sm btn-info">
+            <i class="fas fa-check-circle"></i> Mark as Delivered
+        </a>
+        {% endif %}
+    {% endif %}
+    
+    {% if transfer.status == 'delivered' and transfer.to_shop.manager == user or user.has_perm %}
+    <a href="{% url 'sales:stock_transfer_receive' pk=transfer.pk %}" class="btn btn-sm btn-success">
+        <i class="fas fa-truck-loading"></i> Receive Stock
+    </a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Transfer Info -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Transfer Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th width="40%">Transfer No:</th>
+                        <td><strong>{{ transfer.transfer_number }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Type:</th>
+                        <td><span class="badge bg-info">{{ transfer.get_transfer_type_display }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>
+                            {% if transfer.status == 'pending' %}
+                            <span class="badge bg-warning">{{ transfer.get_status_display }}</span>
+                            {% elif transfer.status == 'in_transit' %}
+                            <span class="badge bg-info">{{ transfer.get_status_display }}</span>
+                            {% elif transfer.status == 'delivered' %}
+                            <span class="badge bg-primary">{{ transfer.get_status_display }}</span>
+                            {% elif transfer.status == 'received' %}
+                            <span class="badge bg-success">{{ transfer.get_status_display }}</span>
+                            {% else %}
+                            <span class="badge bg-danger">{{ transfer.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>From:</th>
+                        <td>{{ transfer.from_location.name|default:"Manufacturing" }}</td>
+                    </tr>
+                    <tr>
+                        <th>To Shop:</th>
+                        <td><strong>{{ transfer.to_shop.name }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Initiated By:</th>
+                        <td>{{ transfer.initiated_by.get_full_name|default:transfer.initiated_by.username }}</td>
+                    </tr>
+                    <tr>
+                        <th>Initiated On:</th>
+                        <td>{{ transfer.transfer_date|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Expected Delivery:</th>
+                        <td>{{ transfer.expected_delivery_date }}</td>
+                    </tr>
+                    {% if transfer.actual_delivery_date %}
+                    <tr>
+                        <th>Actual Delivery:</th>
+                        <td>{{ transfer.actual_delivery_date|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if transfer.received_by %}
+                    <tr>
+                        <th>Received By:</th>
+                        <td>{{ transfer.received_by.get_full_name|default:transfer.received_by.username }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if transfer.vehicle_number %}
+                    <tr>
+                        <th>Vehicle No:</th>
+                        <td>{{ transfer.vehicle_number }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if transfer.driver_name %}
+                    <tr>
+                        <th>Driver:</th>
+                        <td>{{ transfer.driver_name }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+                
+                <!-- Summary -->
+                <div class="alert alert-secondary mt-3">
+                    <div class="d-flex justify-content-between">
+                        <strong>Total Items:</strong>
+                        <span>{{ transfer.total_items }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <strong>Total Quantity:</strong>
+                        <span>{{ transfer.total_quantity }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <strong>Total Value:</strong>
+                        <span class="fw-bold">Ksh {{ transfer.total_value|intcomma }}</span>
+                    </div>
+                </div>
+                
+                {% if transfer.delivery_notes %}
+                <div class="mt-3">
+                    <h6>Delivery Notes:</h6>
+                    <p class="text-muted">{{ transfer.delivery_notes }}</p>
+                </div>
+                {% endif %}
+                
+                {% if transfer.receiving_notes %}
+                <div class="mt-3">
+                    <h6>Receiving Notes:</h6>
+                    <p class="text-muted">{{ transfer.receiving_notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Transfer Items -->
+    <div class="col-md-8 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-boxes"></i> Transfer Items</h5>
+                {% if transfer.status == 'pending' %}
+                <a href="{% url 'sales:stock_transfer_items' pk=transfer.pk %}" class="btn btn-sm btn-light">
+                    <i class="fas fa-plus"></i> Add Items
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th>SKU</th>
+                                <th>Quantity</th>
+                                <th>Received</th>
+                                <th>Pending</th>
+                                <th>Unit Price</th>
+                                <th>Value</th>
+                                <th>Status</th>
+                                {% if transfer.status == 'delivered' %}
+                                <th>Receive</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.product.name }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ item.product.sku }}</span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold">{{ item.quantity }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-success">{{ item.received_quantity }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-warning">{{ item.pending_quantity }}</span>
+                                </td>
+                                <td>Ksh {{ item.product.selling_price|intcomma }}</td>
+                                <td>
+                                    <span class="fw-bold">Ksh {{ item.item_value|intcomma }}</span>
+                                </td>
+                                <td>
+                                    {% if item.is_fully_received %}
+                                    <span class="badge bg-success">Fully Received</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">Partial</span>
+                                    {% endif %}
+                                </td>
+                                {% if transfer.status == 'delivered' and transfer.to_shop.manager == user %}
+                                <td>
+                                    <div class="input-group input-group-sm" style="width: 120px;">
+                                        <input type="number" 
+                                               class="form-control form-control-sm receive-qty" 
+                                               data-item-id="{{ item.pk }}"
+                                               data-transfer-id="{{ transfer.pk }}"
+                                               value="{{ item.received_quantity }}"
+                                               min="0" 
+                                               max="{{ item.quantity }}">
+                                        <button class="btn btn-outline-success btn-sm update-receive-btn"
+                                                data-item-id="{{ item.pk }}"
+                                                data-transfer-id="{{ transfer.pk }}">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="6" class="text-end"><strong>Total Value:</strong></td>
+                                <td><strong>Ksh {{ transfer.total_value|intcomma }}</strong></td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                <!-- Actions for delivered transfers -->
+                {% if transfer.status == 'delivered' and transfer.to_shop.manager == user %}
+                <div class="alert alert-info mt-3">
+                    <h6><i class="fas fa-info-circle"></i> Receiving Instructions</h6>
+                    <p class="mb-2">Update received quantities for each item above, then click "Receive Stock" to complete the transfer.</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small>All items must be received before completing the transfer.</small>
+                        <a href="{% url 'sales:stock_transfer_receive' pk=transfer.pk %}" 
+                           class="btn btn-success {% if not transfer.can_complete %}disabled{% endif %}">
+                            <i class="fas fa-truck-loading"></i> Receive Stock
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                    <h4>No Items Added</h4>
+                    <p class="text-muted">This transfer has no items yet.</p>
+                    {% if transfer.status == 'pending' %}
+                    <a href="{% url 'sales:stock_transfer_items' pk=transfer.pk %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Items
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Status Timeline -->
+        <div class="card shadow mt-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Transfer Timeline</h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item {% if transfer.status != 'cancelled' %}completed{% endif %}">
+                        <div class="timeline-point bg-success"></div>
+                        <div class="timeline-content">
+                            <h6>Transfer Created</h6>
+                            <p class="text-muted mb-0">{{ transfer.transfer_date|date:"d/m/Y H:i" }}</p>
+                            <small>By: {{ transfer.initiated_by.get_full_name|default:transfer.initiated_by.username }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item {% if transfer.status in ['in_transit', 'delivered', 'received'] %}completed{% endif %}">
+                        <div class="timeline-point bg-primary"></div>
+                        <div class="timeline-content">
+                            <h6>In Transit</h6>
+                            {% if transfer.status != 'pending' %}
+                            <p class="text-muted mb-0">Items dispatched from source</p>
+                            {% else %}
+                            <p class="text-muted mb-0">Pending dispatch</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item {% if transfer.status in ['delivered', 'received'] %}completed{% endif %}">
+                        <div class="timeline-point bg-info"></div>
+                        <div class="timeline-content">
+                            <h6>Delivered</h6>
+                            {% if transfer.status in ['delivered', 'received'] %}
+                            <p class="text-muted mb-0">{{ transfer.actual_delivery_date|date:"d/m/Y H:i" }}</p>
+                            {% else %}
+                            <p class="text-muted mb-0">Expected: {{ transfer.expected_delivery_date }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item {% if transfer.status == 'received' %}completed{% endif %}">
+                        <div class="timeline-point bg-success"></div>
+                        <div class="timeline-content">
+                            <h6>Received</h6>
+                            {% if transfer.status == 'received' %}
+                            <p class="text-muted mb-0">Stock received at destination</p>
+                            <small>By: {{ transfer.received_by.get_full_name|default:transfer.received_by.username }}</small>
+                            {% else %}
+                            <p class="text-muted mb-0">Awaiting receipt</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if transfer.status == 'delivered' %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update received quantity
+    document.querySelectorAll('.update-receive-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const itemId = this.getAttribute('data-item-id');
+            const transferId = this.getAttribute('data-transfer-id');
+            const input = document.querySelector(`.receive-qty[data-item-id="${itemId}"]`);
+            const quantity = input.value;
+            
+            // Validate
+            const max = parseInt(input.getAttribute('max'));
+            if (quantity < 0 || quantity > max) {
+                alert(`Quantity must be between 0 and ${max}`);
+                return;
+            }
+            
+            // Send AJAX request
+            fetch(`/sales/transfers/${transferId}/items/${itemId}/update-qty/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: `received_quantity=${quantity}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update display
+                    const row = input.closest('tr');
+                    row.querySelector('td:nth-child(4)').textContent = data.received_quantity;
+                    row.querySelector('td:nth-child(5)').textContent = data.pending_quantity;
+                    
+                    if (data.is_fully_received) {
+                        row.querySelector('td:nth-child(8)').innerHTML = '<span class="badge bg-success">Fully Received</span>';
+                    } else {
+                        row.querySelector('td:nth-child(8)').innerHTML = '<span class="badge bg-warning">Partial</span>';
+                    }
+                    
+                    // Show success message
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-success alert-dismissible fade show';
+                    alert.innerHTML = `
+                        Quantity updated successfully!
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.querySelector('.card-body').prepend(alert);
+                    
+                    // Auto-dismiss alert
+                    setTimeout(() => {
+                        alert.classList.remove('show');
+                        setTimeout(() => alert.remove(), 150);
+                    }, 3000);
+                } else {
+                    alert(data.error || 'Failed to update quantity');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update quantity');
+            });
+        });
+    });
+});
+</script>
+{% endblock %}
+{% endif %}
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-point {
+    position: absolute;
+    left: -30px;
+    top: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #dee2e6;
+}
+
+.timeline-item.completed .timeline-point {
+    background: #28a745 !important;
+}
+
+.timeline-content {
+    padding: 5px 0;
+}
+
+.timeline-content h6 {
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+</style>
+{% endblock %}
