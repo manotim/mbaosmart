@@ -32,13 +32,13 @@
                                 </small>
                             </div>
                             <div>
-                                <form method="post" action="{% url 'accounts:acknowledge_alert' alert.id %}" class="d-inline">
+                                <form method="post" action="{% url 'inventory:acknowledge_alert' alert.id %}" class="d-inline">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-sm btn-success">
                                         <i class="bi bi-check-circle"></i> Acknowledge
                                     </button>
                                 </form>
-                                <a href="{% url 'accounts:raw_material_detail' alert.raw_material.id %}" 
+                                <a href="{% url 'inventory:raw_material_detail' alert.raw_material.id %}" 
                                    class="btn btn-sm btn-outline-primary ms-2">
                                     <i class="bi bi-eye"></i> View
                                 </a>

@@ -1,0 +1,200 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-boxes me-2"></i>{{ title }}
+                </h1>
+                <a href="{% url 'inventory:raw_material_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Raw Material Information</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="rawMaterialForm" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="row">
+                            <!-- Basic Information -->
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3"><i class="fas fa-info-circle me-1"></i> Basic Information</h6>
+                                
+                                <div class="mb-3">
+                                    {{ form.name|as_crispy_field }}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    {{ form.code|as_crispy_field }}
+                                    <small class="form-text text-muted">Unique code for this material (e.g., MAT-001)</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    {{ form.category|as_crispy_field }}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    {{ form.supplier|as_crispy_field }}
+                                </div>
+                            </div>
+                            
+                            <!-- Stock Information -->
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3"><i class="fas fa-warehouse me-1"></i> Stock Information</h6>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        {{ form.unit|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        {{ form.unit_price|as_crispy_field }}
+                                        <small class="form-text text-muted">Price per unit</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    {{ form.current_stock|as_crispy_field }}
+                                    <small class="form-text text-muted">Initial stock quantity</small>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        {{ form.min_stock_level|as_crispy_field }}
+                                        <small class="form-text text-muted">Minimum stock before alert</small>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        {{ form.max_stock_level|as_crispy_field }}
+                                        <small class="form-text text-muted">Maximum storage capacity</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    {{ form.location|as_crispy_field }}
+                                    <small class="form-text text-muted">Storage location in warehouse</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Notes -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6 class="text-primary mb-3"><i class="fas fa-sticky-note me-1"></i> Additional Information</h6>
+                                <div class="mb-3">
+                                    {{ form.notes|as_crispy_field }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Form Actions -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="{% url 'inventory:raw_material_list' %}" class="btn btn-secondary">
+                                        <i class="fas fa-times me-1"></i> Cancel
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-1"></i> Save Raw Material
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Help Card -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">
+                        <i class="fas fa-question-circle me-1"></i> Help & Guidelines
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li><strong>Code:</strong> Must be unique. Use a consistent format like MAT-001, MAT-002, etc.</li>
+                        <li><strong>Stock Levels:</strong> Set min/max levels to enable automatic stock alerts.</li>
+                        <li><strong>Unit Price:</strong> Enter the current purchase price per unit.</li>
+                        <li><strong>Location:</strong> Specify where this material is stored for easy retrieval.</li>
+                        <li><strong>Notes:</strong> Add any special handling instructions or supplier details.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Form validation
+        $('#rawMaterialForm').on('submit', function(e) {
+            const code = $('#id_code').val();
+            if (!code) {
+                e.preventDefault();
+                alert('Please enter a material code.');
+                return false;
+            }
+            
+            const unitPrice = parseFloat($('#id_unit_price').val()) || 0;
+            if (unitPrice < 0) {
+                e.preventDefault();
+                alert('Unit price cannot be negative.');
+                return false;
+            }
+            
+            const currentStock = parseFloat($('#id_current_stock').val()) || 0;
+            if (currentStock < 0) {
+                e.preventDefault();
+                alert('Current stock cannot be negative.');
+                return false;
+            }
+        });
+        
+        // Auto-format code field
+        $('#id_code').on('blur', function() {
+            let code = $(this).val().trim().toUpperCase();
+            if (code && !code.includes('MAT-')) {
+                code = 'MAT-' + code.replace('MAT-', '');
+            }
+            $(this).val(code);
+        });
+        
+        // Calculate total value
+        function calculateTotalValue() {
+            const unitPrice = parseFloat($('#id_unit_price').val()) || 0;
+            const currentStock = parseFloat($('#id_current_stock').val()) || 0;
+            const totalValue = unitPrice * currentStock;
+            
+            // You could display this somewhere if you want
+            // $('#totalValue').text('$' + totalValue.toFixed(2));
+        }
+        
+        $('#id_unit_price, #id_current_stock').on('change keyup', calculateTotalValue);
+        
+        // Initialize calculation
+        calculateTotalValue();
+    });
+</script>
+{% endblock %}

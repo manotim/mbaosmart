@@ -188,6 +188,7 @@ class RawMaterialCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
         context['title'] = 'Add New Raw Material'
         return context
 
+
 class RawMaterialUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = RawMaterial
     form_class = RawMaterialForm
