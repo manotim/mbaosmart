@@ -86,17 +86,17 @@
             <div class="card-footer">
                 <div class="btn-group">
                     {% if perms.inventory.change_rawmaterial %}
-                    <a href="{% url 'accounts:raw_material_edit' material.pk %}" class="btn btn-warning">
+                    <a href="{% url 'inventory:raw_material_edit' material.pk %}" class="btn btn-warning">
                         <i class="bi bi-pencil"></i> Edit Material
                     </a>
                     {% endif %}
                     {% if perms.inventory.add_stockadjustment %}
-                    <a href="{% url 'accounts:adjustment_create' %}?material={{ material.id }}" class="btn btn-info">
+                    <a href="{% url 'inventory:adjustment_create' %}?material={{ material.id }}" class="btn btn-info">
                         <i class="bi bi-sliders"></i> Adjust Stock
                     </a>
                     {% endif %}
                     {% if perms.procurement.add_purchaseorder %}
-                    <a href="{% url 'accounts:purchase_order_create' %}?material={{ material.id }}" class="btn btn-success">
+                    <a href="{% url 'procurement:purchase_order_create' %}?material={{ material.id }}" class="btn btn-success">
                         <i class="bi bi-cart-plus"></i> Purchase More
                     </a>
                     {% endif %}
@@ -144,7 +144,7 @@
                         </tbody>
                     </table>
                 </div>
-                <a href="{% url 'accounts:transaction_list' %}?material={{ material.id }}" class="btn btn-sm btn-outline-primary">
+                <a href="{% url 'inventory:transaction_list' %}?material={{ material.id }}" class="btn btn-sm btn-outline-primary">
                     View All Transactions
                 </a>
             </div>
@@ -165,16 +165,15 @@
                 </div>
                 
                 <div class="progress mb-3" style="height: 20px;">
-                    {% with stock_percentage=material.current_stock|div:material.max_stock_level|multiply:100 %}
+                    {% widthratio material.current_stock material.max_stock_level 100 as stock_percentage %}
                     <div class="progress-bar {% if stock_percentage < 10 %}bg-danger{% elif stock_percentage < 30 %}bg-warning{% else %}bg-success{% endif %}" 
-                         role="progressbar" 
-                         style="width: {{ stock_percentage }}%;"
-                         aria-valuenow="{{ stock_percentage }}" 
-                         aria-valuemin="0" 
-                         aria-valuemax="100">
+                        role="progressbar" 
+                        style="width: {{ stock_percentage }}%;"
+                        aria-valuenow="{{ stock_percentage }}" 
+                        aria-valuemin="0" 
+                        aria-valuemax="100">
                         {{ stock_percentage|floatformat:0 }}%
                     </div>
-                    {% endwith %}
                 </div>
                 
                 <div class="row text-center">

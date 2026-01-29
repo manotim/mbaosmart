@@ -39,7 +39,7 @@
                     </div>
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                        <a href="{% url 'accounts:raw_material_list' %}" class="btn btn-secondary me-md-2">
+                        <a href="{% url 'inventory:raw_material_list' %}" class="btn btn-secondary me-md-2">
                             <i class="bi bi-x-circle"></i> Cancel
                         </a>
                         <button type="submit" class="btn btn-primary">
@@ -61,7 +61,7 @@
             var materialId = $(this).val();
             if (materialId) {
                 $.ajax({
-                    url: '{% url "accounts:api_material_details" 0 %}'.replace('0', materialId),
+                    url: '{% url "inventory:api_material_details" 0 %}'.replace('0', materialId),
                     type: 'GET',
                     success: function(data) {
                         // Update form with material details if needed
