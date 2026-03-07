@@ -1,6 +1,7 @@
 # inventory/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
+from accounts.decorators import any_staff_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib import messages
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
@@ -390,49 +391,52 @@ def transfer_stock(request):
     })
 
 
-# Stock Alert Views
+
+
 @login_required
 @permission_required('inventory.view_stockalert')
 def stock_alerts(request):
+    # Simply display active alerts without auto-creating them
     alerts = StockAlert.objects.filter(is_active=True).select_related('raw_material')
     
-    # Auto-create low stock alerts
-    low_stock_materials = RawMaterial.objects.filter(
-        current_stock__gt=0,
-        current_stock__lte=F('min_stock_level')
-    )
-    
-    for material in low_stock_materials:
-        if not StockAlert.objects.filter(
-            raw_material=material, 
-            alert_type='low_stock',
-            is_active=True
-        ).exists():
-            StockAlert.objects.create(
-                raw_material=material,
-                alert_type='low_stock',
-                message=f'{material.name} is below minimum stock level. Current: {material.current_stock} {material.unit}, Minimum: {material.min_stock_level} {material.unit}'
-            )
-    
-    # Auto-create out of stock alerts
-    out_of_stock_materials = RawMaterial.objects.filter(current_stock__lte=0)
-    
-    for material in out_of_stock_materials:
-        if not StockAlert.objects.filter(
-            raw_material=material, 
-            alert_type='out_of_stock',
-            is_active=True
-        ).exists():
-            StockAlert.objects.create(
-                raw_material=material,
-                alert_type='out_of_stock',
-                message=f'{material.name} is out of stock!'
-            )
+    # Optional: Add summary counts for the template
+    low_stock_count = alerts.filter(alert_type='low_stock').count()
+    out_of_stock_count = alerts.filter(alert_type='out_of_stock').count()
     
     return render(request, 'inventory/stock_alerts.html', {
         'alerts': alerts,
+        'low_stock_count': low_stock_count,
+        'out_of_stock_count': out_of_stock_count,
+        'total_alerts': alerts.count(),
         'title': 'Stock Alerts'
     })
+
+
+
+# Add this to inventory/views.py (at the end of the file, before the API views)
+
+@login_required
+@permission_required('inventory.change_stockalert')
+def acknowledge_all_alerts(request):
+    """Acknowledge all active alerts at once"""
+    if request.method == 'POST':
+        # Get all active alerts
+        alerts = StockAlert.objects.filter(is_active=True)
+        count = alerts.count()
+        
+        if count > 0:
+            # Acknowledge all alerts
+            alerts.update(
+                is_active=False,
+                acknowledged_by=request.user,
+                acknowledged_at=timezone.now()
+            )
+            messages.success(request, f'Successfully acknowledged {count} alert(s).')
+        else:
+            messages.info(request, 'No active alerts to acknowledge.')
+    
+    return redirect('inventory:stock_alerts')
+
 
 @login_required
 @permission_required('inventory.change_stockalert')
@@ -440,26 +444,66 @@ def acknowledge_alert(request, alert_id):
     alert = get_object_or_404(StockAlert, id=alert_id)
     
     if request.method == 'POST':
-        alert.is_active = False
-        alert.acknowledged_by = request.user
-        alert.acknowledged_at = timezone.now()
-        alert.save()
-        
+        alert.acknowledge(request.user)  # Using the model method
         messages.success(request, 'Alert acknowledged successfully!')
     
-    return redirect('inventory:stock_alerts')  # Fixed namespace
+    return redirect('inventory:stock_alerts')
 
-# Reports and Dashboard Views
+
+
+
+
+
+# inventory/views.py - Add this to your inventory_dashboard function
+
 @login_required
-@permission_required('inventory.view_rawmaterial')
+@any_staff_required
 def inventory_dashboard(request):
-    # Use the class method from model
+    """Dashboard - all staff can view"""
+    from django.db.models import Sum, Count, Q, F
+    from .models import RawMaterial, RawMaterialCategory, InventoryTransaction, StockAlert
+    
+    # Basic summary
     summary = RawMaterial.get_inventory_summary()
     
-    # Recent transactions
-    recent_transactions = InventoryTransaction.objects.select_related(
-        'raw_material', 'created_by'
-    ).order_by('-created_at')[:10]
+    # Get all materials for calculations
+    materials = RawMaterial.objects.all()
+    
+    # Calculate counts
+    total_materials = materials.count()
+    
+    # Calculate low stock and out of stock counts
+    low_stock_count = materials.filter(
+        current_stock__gt=0,
+        current_stock__lte=F('min_stock_level')
+    ).count()
+    
+    out_of_stock_count = materials.filter(current_stock__lte=0).count()
+    
+    # Calculate total value
+    total_value = 0
+    for material in materials:
+        try:
+            total_value += float(material.current_stock) * float(material.unit_price)
+        except (TypeError, ValueError):
+            pass
+    
+    # Normal stock count
+    normal_stock_count = total_materials - low_stock_count - out_of_stock_count
+    
+    # Recent transactions (filtered by role)
+    if request.user.role == 'production_manager':
+        recent_transactions = InventoryTransaction.objects.filter(
+            transaction_type='production_usage'
+        ).select_related('raw_material', 'created_by').order_by('-created_at')[:10]
+    elif request.user.role == 'accountant':
+        recent_transactions = InventoryTransaction.objects.filter(
+            transaction_type__in=['purchase', 'adjustment']
+        ).select_related('raw_material', 'created_by').order_by('-created_at')[:10]
+    else:
+        recent_transactions = InventoryTransaction.objects.select_related(
+            'raw_material', 'created_by'
+        ).order_by('-created_at')[:10]
     
     # Low stock items
     low_stock_items = RawMaterial.objects.filter(
@@ -467,42 +511,70 @@ def inventory_dashboard(request):
         current_stock__lte=F('min_stock_level')
     ).order_by('current_stock')[:10]
     
-    # Category distribution - Use property in Python instead of annotation
+    # Category distribution
     categories = RawMaterialCategory.objects.all()
     category_distribution = []
     
     for category in categories:
-        materials = RawMaterial.objects.filter(category=category)
-        total_value = sum(mat.total_value for mat in materials)
-        if materials.exists() or total_value > 0:
+        cat_materials = RawMaterial.objects.filter(category=category)
+        count = cat_materials.count()
+        total_cat_value = sum(float(m.current_stock) * float(m.unit_price) 
+                              for m in cat_materials if m.current_stock and m.unit_price)
+        total_cat_stock = sum(float(m.current_stock) for m in cat_materials if m.current_stock)
+        
+        if count > 0:
             category_distribution.append({
                 'category__name': category.name,
-                'count': materials.count(),
-                'total_value': total_value
+                'count': count,
+                'total_value': total_cat_value,
+                'total_stock': total_cat_stock
             })
     
-    # Add uncategorized
-    uncategorized_materials = RawMaterial.objects.filter(category__isnull=True)
-    if uncategorized_materials.exists():
-        total_value = sum(mat.total_value for mat in uncategorized_materials)
+    # Uncategorized materials
+    uncat_materials = RawMaterial.objects.filter(category__isnull=True)
+    if uncat_materials.exists():
+        total_uncat_value = sum(float(m.current_stock) * float(m.unit_price) 
+                                for m in uncat_materials if m.current_stock and m.unit_price)
+        total_uncat_stock = sum(float(m.current_stock) for m in uncat_materials if m.current_stock)
         category_distribution.append({
             'category__name': 'Uncategorized',
-            'count': uncategorized_materials.count(),
-            'total_value': total_value
+            'count': uncat_materials.count(),
+            'total_value': total_uncat_value,
+            'total_stock': total_uncat_stock
         })
     
+    # Active alerts
+    active_alerts = StockAlert.objects.filter(is_active=True).select_related('raw_material')[:5]
+    active_alerts_count = active_alerts.count()
+    
+    # Production-specific counts
+    category_count = RawMaterialCategory.objects.count()
+    production_ready_count = materials.filter(current_stock__gt=0).count()
+    
     context = {
-        'total_materials': summary['total_materials'],
-        'low_stock_count': summary['low_stock_count'],
-        'out_of_stock_count': summary['out_of_stock_count'],
-        'total_value': summary['total_value'],
+        'total_materials': total_materials,
+        'low_stock_count': low_stock_count,
+        'out_of_stock_count': out_of_stock_count,
+        'normal_stock_count': normal_stock_count,
+        'total_value': total_value,
         'recent_transactions': recent_transactions,
         'low_stock_items': low_stock_items,
         'category_distribution': category_distribution,
+        'active_alerts': active_alerts,
+        'active_alerts_count': active_alerts_count,
+        'category_count': category_count,
+        'production_ready_count': production_ready_count,
+        'user_role': request.user.role,
         'title': 'Inventory Dashboard'
     }
     
     return render(request, 'inventory/dashboard.html', context)
+
+
+
+
+
+
 
 @login_required
 @permission_required('inventory.view_rawmaterial')

@@ -66,6 +66,22 @@
             background-color: #1a252f;
         }
         
+        .role-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 5px;
+        }
+        
+        .role-badge.owner { background-color: #8e44ad; color: white; }
+        .role-badge.store_manager { background-color: #2980b9; color: white; }
+        .role-badge.production_manager { background-color: #27ae60; color: white; }
+        .role-badge.accountant { background-color: #f39c12; color: white; }
+        .role-badge.fundi { background-color: #7f8c8d; color: white; }
+        
         .menu-section {
             cursor: pointer;
             padding: 12px 15px;
@@ -188,6 +204,12 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         
+        .stat-card.blue { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .stat-card.green { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+        .stat-card.orange { background: linear-gradient(135deg, #f39c12, #e67e22); }
+        .stat-card.red { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .stat-card.purple { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+        
         .navbar-brand {
             font-weight: bold;
             color: var(--primary-color) !important;
@@ -222,6 +244,12 @@
         .sidebar-content::-webkit-scrollbar-thumb:hover {
             background: #3498db;
         }
+        
+        /* Role-specific accent colors */
+        .owner-accent { border-left: 4px solid #8e44ad !important; }
+        .store_manager-accent { border-left: 4px solid #2980b9 !important; }
+        .production_manager-accent { border-left: 4px solid #27ae60 !important; }
+        .accountant-accent { border-left: 4px solid #f39c12 !important; }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -235,36 +263,36 @@
         <!-- Sidebar Header -->
         <div class="sidebar-header">
             <h4 class="text-white mb-1">MbaoSmart</h4>
-            <small class="text-muted">Inventory Management</small>
+            <small class="text-muted">Furniture Inventory</small>
         </div>
         
         <!-- Scrollable Content -->
         <div class="sidebar-content">
-            <!-- User Info -->
+            <!-- User Info with Role Badge -->
             <div class="user-info px-3">
                 <div class="d-flex align-items-center">
                     <div class="user-avatar">
                         {{ request.user.get_full_name|default:request.user.username|first|upper }}
                     </div>
                     <div>
-                        <div class="text-white small">{{ request.user.get_full_name|default:request.user.username }}</div>
+                        <div class="text-white small d-flex align-items-center">
+                            {{ request.user.get_full_name|default:request.user.username }}
+                            <span class="role-badge {{ request.user.role }}">{{ request.user.get_role_display }}</span>
+                        </div>
                         <small class="text-muted">
-                            {% if perms.inventory %}
-                            Inventory Manager
-                            {% elif request.user.groups.all %}
-                            {{ request.user.groups.first.name }}
-                            {% else %}
-                            User
-                            {% endif %}
+                            {% if request.user.role == 'owner' %}System Administrator
+                            {% elif request.user.role == 'store_manager' %}Inventory Manager
+                            {% elif request.user.role == 'production_manager' %}Production Manager
+                            {% elif request.user.role == 'accountant' %}Financial Controller
+                            {% elif request.user.role == 'fundi' %}Workshop Staff
+                            {% else %}Staff Member{% endif %}
                         </small>
                     </div>
                 </div>
             </div>
             
-            <!-- Navigation Menu -->
-            {% if perms.inventory.view_rawmaterial or perms.inventory.view_rawmaterialcategory %}
-            <!-- DASHBOARD -->
-            <div class="menu-section" data-toggle="dashboard-section">
+            <!-- DASHBOARD - Everyone -->
+            <div class="menu-section {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" data-toggle="dashboard-section">
                 <span>Dashboard</span>
                 <i class="bi bi-chevron-down toggle-icon"></i>
             </div>
@@ -272,67 +300,97 @@
                 <a class="menu-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
                    href="{% url 'inventory:dashboard' %}">
                     <div>
-                        <i class="bi bi-speedometer2"></i> Dashboard
+                        <i class="bi bi-speedometer2"></i> Overview
                     </div>
                 </a>
             </div>
             
-            <!-- INVENTORY MANAGEMENT -->
+            <!-- INVENTORY MANAGEMENT - Store Managers & Owners -->
+            {% if request.user.role == 'owner' or request.user.role == 'store_manager' %}
             <div class="menu-section" data-toggle="inventory-section">
                 <span>Inventory Management</span>
                 <i class="bi bi-chevron-down toggle-icon"></i>
             </div>
             <div class="submenu" id="inventory-section">
-                {% if perms.inventory.view_rawmaterial %}
-                <a class="menu-item {% if 'raw-material' in request.path %}active{% endif %}" 
+                <a class="menu-item {% if 'raw-material-list' in request.path %}active{% endif %}" 
                    href="{% url 'inventory:raw_material_list' %}">
                     <div>
                         <i class="bi bi-box"></i> Raw Materials
                     </div>
-                    {% with low_stock_count=low_stock_count|default:0 out_of_stock_count=out_of_stock_count|default:0 %}
-                    {% if low_stock_count > 0 or out_of_stock_count > 0 %}
-                    <span class="badge bg-danger badge-count">{{ low_stock_count|add:out_of_stock_count }}</span>
+                    {% if low_stock_count > 0 %}
+                    <span class="badge bg-danger badge-count">{{ low_stock_count }}</span>
                     {% endif %}
-                    {% endwith %}
                 </a>
-                {% endif %}
                 
-                {% if perms.inventory.view_rawmaterialcategory %}
-                <a class="menu-item {% if 'category' in request.path %}active{% endif %}" 
+                <a class="menu-item {% if 'category-list' in request.path %}active{% endif %}" 
                    href="{% url 'inventory:category_list' %}">
                     <div>
                         <i class="bi bi-tags"></i> Categories
                     </div>
                 </a>
-                {% endif %}
                 
-                {% if perms.inventory.add_rawmaterial %}
-                <a class="menu-item {% if 'raw_material_create' in request.path %}active{% endif %}" 
+                <a class="menu-item {% if 'raw-material-create' in request.path %}active{% endif %}" 
                    href="{% url 'inventory:raw_material_create' %}">
                     <div>
                         <i class="bi bi-plus-circle"></i> Add New Material
                     </div>
                 </a>
-                {% endif %}
+                
+                <a class="menu-item {% if 'transfer-stock' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:transfer_stock' %}">
+                    <div>
+                        <i class="bi bi-truck"></i> Transfer Stock
+                    </div>
+                </a>
             </div>
+            {% endif %}
             
-            <!-- TRANSACTIONS -->
+            <!-- PRODUCTION VIEW - Production Managers -->
+            {% if request.user.role == 'owner' or request.user.role == 'production_manager' %}
+            <div class="menu-section" data-toggle="production-section">
+                <span>Production</span>
+                <i class="bi bi-chevron-down toggle-icon"></i>
+            </div>
+            <div class="submenu" id="production-section">
+                <a class="menu-item {% if 'raw-material-list' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:raw_material_list' %}">
+                    <div>
+                        <i class="bi bi-box"></i> View Materials
+                    </div>
+                </a>
+                
+                <a class="menu-item {% if 'production-usage' in request.path %}active{% endif %}" 
+                   href="#">
+                    <div>
+                        <i class="bi bi-gear"></i> Record Production Usage
+                    </div>
+                </a>
+                
+                <a class="menu-item {% if 'transfer-stock' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:transfer_stock' %}">
+                    <div>
+                        <i class="bi bi-truck"></i> Transfer Stock
+                    </div>
+                </a>
+            </div>
+            {% endif %}
+            
+            <!-- TRANSACTIONS - Store Managers & Production Managers -->
+            {% if request.user.role == 'owner' or request.user.role == 'store_manager' or request.user.role == 'production_manager' %}
             <div class="menu-section" data-toggle="transactions-section">
                 <span>Transactions</span>
                 <i class="bi bi-chevron-down toggle-icon"></i>
             </div>
             <div class="submenu" id="transactions-section">
-                {% if perms.inventory.view_inventorytransaction %}
-                <a class="menu-item {% if 'transaction' in request.path %}active{% endif %}" 
+                <a class="menu-item {% if 'transaction-list' in request.path %}active{% endif %}" 
                    href="{% url 'inventory:transaction_list' %}">
                     <div>
                         <i class="bi bi-arrow-left-right"></i> All Transactions
                     </div>
                 </a>
-                {% endif %}
                 
-                {% if perms.inventory.add_inventorytransaction %}
-                <a class="menu-item {% if 'transaction_create' in request.path %}active{% endif %}" 
+                {% if request.user.role == 'owner' or request.user.role == 'store_manager' %}
+                <a class="menu-item {% if 'transaction-create' in request.path %}active{% endif %}" 
                    href="{% url 'inventory:transaction_create' %}">
                     <div>
                         <i class="bi bi-plus-circle"></i> New Transaction
@@ -340,81 +398,119 @@
                 </a>
                 {% endif %}
             </div>
+            {% endif %}
             
-            <!-- STOCK MANAGEMENT -->
+            <!-- STOCK ADJUSTMENTS - Store Managers Only -->
+            {% if request.user.role == 'owner' or request.user.role == 'store_manager' %}
             <div class="menu-section" data-toggle="stock-section">
                 <span>Stock Management</span>
                 <i class="bi bi-chevron-down toggle-icon"></i>
             </div>
             <div class="submenu" id="stock-section">
-                {% if perms.inventory.add_stockadjustment %}
-                <a class="menu-item {% if 'adjustment_create' in request.path %}active{% endif %}" 
+                <a class="menu-item {% if 'adjustment-create' in request.path %}active{% endif %}" 
                    href="{% url 'inventory:adjustment_create' %}">
                     <div>
                         <i class="bi bi-sliders"></i> Adjust Stock
                     </div>
                 </a>
-                {% endif %}
                 
-                {% if perms.inventory.view_stockadjustment %}
-                <a class="menu-item {% if 'adjustment' in request.path %}active{% endif %}" 
+                <a class="menu-item {% if 'adjustment-list' in request.path %}active{% endif %}" 
                    href="{% url 'inventory:adjustment_list' %}">
                     <div>
                         <i class="bi bi-clock-history"></i> Adjustment History
                     </div>
                 </a>
-                {% endif %}
-                
-                {% if perms.inventory.add_inventorytransaction %}
-                <a class="menu-item {% if 'transfer_stock' in request.path %}active{% endif %}" 
-                   href="{% url 'inventory:transfer_stock' %}">
-                    <div>
-                        <i class="bi bi-truck"></i> Transfer Stock
-                    </div>
-                </a>
-                {% endif %}
             </div>
+            {% endif %}
             
-            <!-- ALERTS & REPORTS -->
-            <div class="menu-section" data-toggle="reports-section">
-                <span>Reports & Alerts</span>
+            <!-- ALERTS - Store Managers & Owners -->
+            {% if request.user.role == 'owner' or request.user.role == 'store_manager' %}
+            <div class="menu-section" data-toggle="alerts-section">
+                <span>Alerts</span>
                 <i class="bi bi-chevron-down toggle-icon"></i>
             </div>
-            <div class="submenu" id="reports-section">
-                {% if perms.inventory.view_stockalert %}
-                <a class="menu-item {% if 'alert' in request.path %}active{% endif %}" 
+            <div class="submenu" id="alerts-section">
+                <a class="menu-item {% if 'stock-alerts' in request.path %}active{% endif %}" 
                    href="{% url 'inventory:stock_alerts' %}">
                     <div>
                         <i class="bi bi-bell"></i> Stock Alerts
                     </div>
                     {% if active_alerts_count > 0 %}
-                    <span class="badge bg-warning badge-count">{{ active_alerts_count }}</span>
+                    <span class="badge bg-danger badge-count">{{ active_alerts_count }}</span>
                     {% endif %}
                 </a>
-                {% endif %}
-                
-                {% if perms.inventory.view_rawmaterial %}
-                <a class="menu-item {% if 'stock_report' in request.path %}active{% endif %}" 
+            </div>
+            {% endif %}
+            
+            <!-- REPORTS - Accountants & Owners -->
+            {% if request.user.role == 'owner' or request.user.role == 'accountant' %}
+            <div class="menu-section" data-toggle="reports-section">
+                <span>Reports</span>
+                <i class="bi bi-chevron-down toggle-icon"></i>
+            </div>
+            <div class="submenu" id="reports-section">
+                <a class="menu-item {% if 'stock-report' in request.path %}active{% endif %}" 
                    href="{% url 'inventory:stock_report' %}">
                     <div>
                         <i class="bi bi-file-text"></i> Stock Report
                     </div>
                 </a>
-                {% endif %}
+                
+                <a class="menu-item {% if 'transaction-list' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:transaction_list' %}">
+                    <div>
+                        <i class="bi bi-journal-text"></i> Transaction History
+                    </div>
+                </a>
+                
+                <a class="menu-item" href="{% url 'inventory:stock_report' %}?export=csv">
+                    <div>
+                        <i class="bi bi-download"></i> Export CSV
+                    </div>
+                </a>
             </div>
-            
             {% endif %}
             
-            <!-- SYSTEM -->
+            <!-- USER MANAGEMENT - Owner Only -->
+            {% if request.user.role == 'owner' %}
+            <div class="menu-section" data-toggle="admin-section">
+                <span>Administration</span>
+                <i class="bi bi-chevron-down toggle-icon"></i>
+            </div>
+            <div class="submenu" id="admin-section">
+                <a class="menu-item {% if 'user-list' in request.path %}active{% endif %}" 
+                   href="{% url 'accounts:user_list' %}">
+                    <div>
+                        <i class="bi bi-people"></i> User Management
+                    </div>
+                </a>
+                
+                <a class="menu-item {% if 'category-list' in request.path %}active{% endif %}" 
+                   href="{% url 'inventory:category_list' %}">
+                    <div>
+                        <i class="bi bi-tags"></i> Category Management
+                    </div>
+                </a>
+            </div>
+            {% endif %}
+            
+            <!-- SYSTEM - Everyone -->
             <div class="menu-section" data-toggle="system-section">
                 <span>System</span>
                 <i class="bi bi-chevron-down toggle-icon"></i>
             </div>
             <div class="submenu" id="system-section">
-                <a class="menu-item {% if request.resolver_match.app_name == 'accounts' %}active{% endif %}" 
+                <a class="menu-item {% if 'profile' in request.path %}active{% endif %}" 
                    href="{% url 'accounts:profile' %}">
                     <div>
                         <i class="bi bi-person"></i> My Profile
+                    </div>
+                </a>
+                
+                <a class="menu-item {% if 'change-password' in request.path %}active{% endif %}" 
+                   href="{% url 'accounts:change_password' %}">
+                    <div>
+                        <i class="bi bi-key"></i> Change Password
                     </div>
                 </a>
             </div>
@@ -438,7 +534,7 @@
                     <i class="bi bi-list"></i>
                 </button>
                 
-                <!-- Page Title -->
+                <!-- Page Title with Role Indicator -->
                 <div class="navbar-nav me-auto">
                     <span class="navbar-brand mb-0 h1">
                         {% block page_title %}
@@ -449,9 +545,12 @@
                         {% elif request.resolver_match.url_name == 'adjustment_list' %}Stock Adjustments
                         {% elif request.resolver_match.url_name == 'stock_alerts' %}Stock Alerts
                         {% elif request.resolver_match.url_name == 'stock_report' %}Stock Report
+                        {% elif request.resolver_match.url_name == 'profile' %}My Profile
+                        {% elif request.resolver_match.url_name == 'user_list' %}User Management
                         {% else %}{{ title|default:"Inventory" }}
                         {% endif %}
                         {% endblock %}
+                        <span class="role-badge {{ request.user.role }} ms-2">{{ request.user.get_role_display }}</span>
                     </span>
                 </div>
                 
@@ -461,22 +560,27 @@
                         <i class="bi bi-calendar-check me-1"></i> {% now "j F Y" %}
                     </span>
                     
-                    <!-- Quick Actions -->
-                    {% if perms.inventory.add_rawmaterial %}
+                    <!-- Role-specific Quick Actions -->
+                    {% if request.user.role == 'owner' or request.user.role == 'store_manager' %}
                     <a href="{% url 'inventory:raw_material_create' %}" class="btn btn-primary btn-sm me-2">
                         <i class="bi bi-plus-circle me-1"></i> New Material
                     </a>
                     {% endif %}
                     
-                    {% if perms.inventory.view_stockalert %}
-                    <a href="{% url 'inventory:stock_alerts' %}" class="btn btn-warning btn-sm position-relative">
+                    {% if request.user.role == 'owner' or request.user.role == 'store_manager' %}
+                    <a href="{% url 'inventory:stock_alerts' %}" class="btn btn-warning btn-sm me-2 position-relative">
                         <i class="bi bi-bell me-1"></i> Alerts
                         {% if active_alerts_count > 0 %}
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                             {{ active_alerts_count }}
-                            <span class="visually-hidden">unread alerts</span>
                         </span>
                         {% endif %}
+                    </a>
+                    {% endif %}
+                    
+                    {% if request.user.role == 'owner' or request.user.role == 'accountant' %}
+                    <a href="{% url 'inventory:stock_report' %}?export=csv" class="btn btn-success btn-sm">
+                        <i class="bi bi-download me-1"></i> Export
                     </a>
                     {% endif %}
                 </div>
@@ -560,21 +664,18 @@
                 const targetId = section.getAttribute('data-toggle');
                 const targetSubmenu = document.getElementById(targetId);
                 if (targetSubmenu) {
-                    // Expand by default
                     targetSubmenu.style.maxHeight = targetSubmenu.scrollHeight + 'px';
                 }
             });
             
             // Close sidebar when clicking outside on mobile
             document.addEventListener('click', function(event) {
-                const isClickInsideSidebar = sidebarMenu.contains(event.target);
+                const isClickInsideSidebar = sidebarMenu ? sidebarMenu.contains(event.target) : false;
                 const isClickOnToggle = sidebarToggle ? sidebarToggle.contains(event.target) : false;
                 
                 if (!isClickInsideSidebar && !isClickOnToggle && window.innerWidth < 768) {
-                    sidebarMenu.classList.remove('show');
-                    if (sidebarOverlay) {
-                        sidebarOverlay.classList.remove('show');
-                    }
+                    if (sidebarMenu) sidebarMenu.classList.remove('show');
+                    if (sidebarOverlay) sidebarOverlay.classList.remove('show');
                 }
             });
             
@@ -604,7 +705,7 @@
                 
                 menuItems.forEach(item => {
                     const href = item.getAttribute('href');
-                    if (href && currentPath.startsWith(href)) {
+                    if (href && currentPath.startsWith(href) && href !== '/') {
                         menuItems.forEach(i => i.classList.remove('active'));
                         item.classList.add('active');
                         
@@ -628,10 +729,8 @@
             // Resize handler
             window.addEventListener('resize', function() {
                 if (window.innerWidth >= 768) {
-                    sidebarMenu.classList.remove('show');
-                    if (sidebarOverlay) {
-                        sidebarOverlay.classList.remove('show');
-                    }
+                    if (sidebarMenu) sidebarMenu.classList.remove('show');
+                    if (sidebarOverlay) sidebarOverlay.classList.remove('show');
                 }
             });
         });

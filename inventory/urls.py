@@ -35,6 +35,7 @@ urlpatterns = [
     # Stock Alert URLs
     path('alerts/', views.stock_alerts, name='stock_alerts'),
     path('alerts/<int:alert_id>/acknowledge/', views.acknowledge_alert, name='acknowledge_alert'),
+    path('alerts/acknowledge-all/', views.acknowledge_all_alerts, name='acknowledge_all_alerts'),  # Add this line
     
     # Report URLs
     path('reports/stock/', views.stock_report, name='stock_report'),

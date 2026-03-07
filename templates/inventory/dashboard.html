@@ -1,59 +1,236 @@
 {% extends 'base/base.html' %}
 {% load mathfilters %}
+
 {% block title %}Inventory Dashboard - MbaoSmart{% endblock %}
 {% block page_title %}Inventory Dashboard{% endblock %}
 
 {% block content %}
+<!-- Welcome message with role-specific greeting -->
+<div class="alert alert-info mb-4">
+    <div class="d-flex align-items-center">
+        <i class="bi bi-info-circle-fill me-3 fs-4"></i>
+        <div>
+            <strong>Welcome, {{ request.user.get_full_name|default:request.user.username }}!</strong><br>
+            You are logged in as <span class="badge bg-primary">{{ request.user.get_role_display }}</span>.
+            {% if request.user.role == 'owner' %}
+            You have full system access.
+            {% elif request.user.role == 'store_manager' %}
+            You can manage inventory, record transactions, and monitor stock alerts.
+            {% elif request.user.role == 'production_manager' %}
+            You can view materials and record production usage.
+            {% elif request.user.role == 'accountant' %}
+            You can view reports and export financial data.
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards - Role-based visibility -->
 <div class="row mb-4">
-    <!-- Summary Cards -->
+    <!-- Total Materials - Everyone -->
     <div class="col-md-3">
         <div class="stat-card blue">
-            <h6>Total Materials</h6>
-            <h3>{{ total_materials }}</h3>
-            <small>Items in inventory</small>
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6>Total Materials</h6>
+                    <h3>{{ total_materials|default:"0" }}</h3>
+                    <small>Items in inventory</small>
+                </div>
+                <i class="bi bi-box-seam fs-1 opacity-50"></i>
+            </div>
         </div>
     </div>
+    
+    <!-- Total Value - Accountants & Owners only -->
+    {% if request.user.role == 'owner' or request.user.role == 'accountant' %}
     <div class="col-md-3">
         <div class="stat-card green">
-            <h6>Total Value</h6>
-            <h3>Ksh {{ total_value|floatformat:2 }}</h3>
-            <small>Current inventory value</small>
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6>Total Value</h6>
+                    <h3>Ksh {{ total_value|default:"0"|floatformat:2 }}</h3>
+                    <small>Current inventory value</small>
+                </div>
+                <i class="bi bi-cash-stack fs-1 opacity-50"></i>
+            </div>
         </div>
     </div>
+    {% endif %}
+    
+    <!-- Low Stock - Store Managers & Owners only -->
+    {% if request.user.role == 'owner' or request.user.role == 'store_manager' %}
     <div class="col-md-3">
         <div class="stat-card orange">
-            <h6>Low Stock</h6>
-            <h3>{{ low_stock_count }}</h3>
-            <small>Items below minimum</small>
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6>Low Stock</h6>
+                    <h3>{{ low_stock_count|default:"0" }}</h3>
+                    <small>Items below minimum</small>
+                </div>
+                <i class="bi bi-exclamation-triangle fs-1 opacity-50"></i>
+            </div>
         </div>
     </div>
+    
     <div class="col-md-3">
         <div class="stat-card red">
-            <h6>Out of Stock</h6>
-            <h3>{{ out_of_stock_count }}</h3>
-            <small>Items requiring attention</small>
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6>Out of Stock</h6>
+                    <h3>{{ out_of_stock_count|default:"0" }}</h3>
+                    <small>Items requiring attention</small>
+                </div>
+                <i class="bi bi-x-circle fs-1 opacity-50"></i>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- For Production Manager - show different cards -->
+    {% if request.user.role == 'production_manager' %}
+    <div class="col-md-3">
+        <div class="stat-card purple">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6>Production Ready</h6>
+                    <h3>{{ production_ready_count|default:total_materials|default:"0" }}</h3>
+                    <small>Materials available</small>
+                </div>
+                <i class="bi bi-gear fs-1 opacity-50"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card blue">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6>Categories</h6>
+                    <h3>{{ category_count|default:"0" }}</h3>
+                    <small>Material types</small>
+                </div>
+                <i class="bi bi-tags fs-1 opacity-50"></i>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Role-specific Quick Action Cards -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if request.user.role == 'owner' or request.user.role == 'store_manager' %}
+                    <div class="col-md-3 text-center">
+                        <a href="{% url 'inventory:raw_material_create' %}" class="btn btn-outline-primary w-100 mb-2 py-3">
+                            <i class="bi bi-plus-circle fs-2"></i><br>
+                            Add Material
+                        </a>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <a href="{% url 'inventory:transaction_create' %}" class="btn btn-outline-success w-100 mb-2 py-3">
+                            <i class="bi bi-cart-plus fs-2"></i><br>
+                            Record Purchase
+                        </a>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <a href="{% url 'inventory:adjustment_create' %}" class="btn btn-outline-warning w-100 mb-2 py-3">
+                            <i class="bi bi-sliders fs-2"></i><br>
+                            Adjust Stock
+                        </a>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <a href="{% url 'inventory:stock_alerts' %}" class="btn btn-outline-danger w-100 mb-2 py-3">
+                            <i class="bi bi-bell fs-2"></i><br>
+                            View Alerts
+                            {% if active_alerts_count > 0 %}
+                            <span class="badge bg-danger">{{ active_alerts_count }}</span>
+                            {% endif %}
+                        </a>
+                    </div>
+                    
+                    {% elif request.user.role == 'production_manager' %}
+                    <div class="col-md-4 text-center">
+                        <a href="{% url 'inventory:raw_material_list' %}" class="btn btn-outline-primary w-100 mb-2 py-3">
+                            <i class="bi bi-box fs-2"></i><br>
+                            View Materials
+                        </a>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <a href="#" class="btn btn-outline-success w-100 mb-2 py-3">
+                            <i class="bi bi-gear fs-2"></i><br>
+                            Record Usage
+                        </a>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <a href="{% url 'inventory:transfer_stock' %}" class="btn btn-outline-info w-100 mb-2 py-3">
+                            <i class="bi bi-truck fs-2"></i><br>
+                            Transfer Stock
+                        </a>
+                    </div>
+                    
+                    {% elif request.user.role == 'accountant' %}
+                    <div class="col-md-4 text-center">
+                        <a href="{% url 'inventory:stock_report' %}" class="btn btn-outline-primary w-100 mb-2 py-3">
+                            <i class="bi bi-file-text fs-2"></i><br>
+                            View Stock Report
+                        </a>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <a href="{% url 'inventory:transaction_list' %}" class="btn btn-outline-success w-100 mb-2 py-3">
+                            <i class="bi bi-journal-text fs-2"></i><br>
+                            Transaction History
+                        </a>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <a href="{% url 'inventory:stock_report' %}?export=csv" class="btn btn-outline-warning w-100 mb-2 py-3">
+                            <i class="bi bi-download fs-2"></i><br>
+                            Export CSV
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <div class="row mb-4">
-    <!-- Recent Transactions -->
+    <!-- Recent Transactions - Everyone sees, but filtered by role -->
     <div class="col-md-8">
         <div class="card">
-            <div class="card-header bg-light">
-                <h5 class="mb-0">Recent Inventory Transactions</h5>
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    Recent Transactions
+                    {% if request.user.role == 'production_manager' %}
+                    <small class="text-muted">(Production Usage Only)</small>
+                    {% elif request.user.role == 'accountant' %}
+                    <small class="text-muted">(Financial Focus)</small>
+                    {% endif %}
+                </h5>
+                <a href="{% url 'inventory:transaction_list' %}" class="btn btn-sm btn-outline-primary">
+                    View All
+                </a>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-sm">
+                    <table class="table table-sm table-hover">
                         <thead>
                             <tr>
                                 <th>Date</th>
                                 <th>Material</th>
                                 <th>Type</th>
                                 <th class="text-end">Quantity</th>
+                                {% if request.user.role == 'accountant' or request.user.role == 'owner' %}
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Total</th>
+                                {% endif %}
                                 <th>Reference</th>
-                                <th>Created By</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -70,27 +247,27 @@
                                     {% if transaction.transaction_type == 'purchase' %}+{% else %}-{% endif %}
                                     {{ transaction.quantity|floatformat:2 }}
                                 </td>
-                                <td>{{ transaction.reference|truncatechars:15 }}</td>
-                                <td>{{ transaction.created_by.get_full_name|default:transaction.created_by.username|truncatechars:10 }}</td>
+                                {% if request.user.role == 'accountant' or request.user.role == 'owner' %}
+                                <td class="text-end">Ksh {{ transaction.unit_price|default:0|floatformat:2 }}</td>
+                                <td class="text-end">Ksh {{ transaction.total_value|default:0|floatformat:2 }}</td>
+                                {% endif %}
+                                <td>{{ transaction.reference|truncatechars:12 }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="6" class="text-center py-3 text-muted">No recent transactions</td>
+                                <td colspan="{% if request.user.role == 'accountant' or request.user.role == 'owner' %}7{% else %}5{% endif %}" class="text-center py-4 text-muted">
+                                    No recent transactions found
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
-                <div class="text-center mt-2">
-                    <a href="{% url 'inventory:transaction_list' %}" class="btn btn-sm btn-outline-primary">
-                        View All Transactions
-                    </a>
-                </div>
             </div>
         </div>
     </div>
 
-    <!-- Stock Distribution Chart -->
+    <!-- Stock Distribution Chart - Everyone sees but different context -->
     <div class="col-md-4">
         <div class="card">
             <div class="card-header bg-light">
@@ -98,20 +275,42 @@
             </div>
             <div class="card-body">
                 <canvas id="stockChart" width="100%" height="200"></canvas>
+                
+                <!-- Role-specific summary below chart -->
+                <div class="mt-3 small">
+                    {% if request.user.role == 'store_manager' or request.user.role == 'owner' %}
+                    <div class="d-flex justify-content-between">
+                        <span><span class="badge bg-warning">&nbsp;</span> Low Stock: {{ low_stock_count|default:"0" }}</span>
+                        <span><span class="badge bg-danger">&nbsp;</span> Out of Stock: {{ out_of_stock_count|default:"0" }}</span>
+                        <span><span class="badge bg-success">&nbsp;</span> Normal: {{ normal_stock_count|default:"0" }}</span>
+                    </div>
+                    {% elif request.user.role == 'accountant' %}
+                    <div class="text-center text-muted">
+                        <i class="bi bi-calculator"></i> Total Inventory Value: Ksh {{ total_value|default:"0"|floatformat:2 }}
+                    </div>
+                    {% elif request.user.role == 'production_manager' %}
+                    <div class="text-center text-muted">
+                        <i class="bi bi-gear"></i> Materials available for production: {{ total_materials|default:"0" }}
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Role-specific lower sections -->
 <div class="row">
-    <!-- Low Stock Items -->
+    <!-- Store Managers see Low Stock Items -->
+    {% if request.user.role == 'owner' or request.user.role == 'store_manager' %}
     <div class="col-md-6">
         <div class="card">
-            <div class="card-header bg-light">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Low Stock Items</h5>
-                    <span class="badge bg-warning">{{ low_stock_items|length }}</span>
-                </div>
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                    Low Stock Items
+                </h5>
+                <span class="badge bg-warning">{{ low_stock_items|length }}</span>
             </div>
             <div class="card-body">
                 <div class="list-group list-group-flush">
@@ -119,15 +318,17 @@
                     <a href="{% url 'inventory:raw_material_detail' item.pk %}" class="list-group-item list-group-item-action">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">{{ item.name }}</h6>
-                            <span class="text-warning">{{ item.current_stock|floatformat:2 }} {{ item.unit }}</span>
+                            <span class="text-warning fw-bold">{{ item.current_stock|floatformat:0 }} / {{ item.min_stock_level|floatformat:0 }} {{ item.unit }}</span>
                         </div>
                         <small class="text-muted">
-                            Code: {{ item.code }} | Min: {{ item.min_stock_level|floatformat:2 }} | 
-                            Max: {{ item.max_stock_level|floatformat:2 }}
+                            Code: {{ item.code }} | Location: {{ item.location }}
                         </small>
+                        <div class="progress mt-2" style="height: 5px;">
+                            <div class="progress-bar bg-warning" style="width: {{ item.current_stock|div:item.min_stock_level|mul:100 }}%"></div>
+                        </div>
                     </a>
                     {% empty %}
-                    <div class="text-center py-3">
+                    <div class="text-center py-4">
                         <i class="bi bi-check-circle display-6 text-success"></i>
                         <p class="mt-2 text-muted">No low stock items</p>
                     </div>
@@ -136,12 +337,17 @@
             </div>
         </div>
     </div>
-
-    <!-- Category Distribution -->
+    {% endif %}
+    
+    <!-- Accountants see Category Value Distribution -->
+    {% if request.user.role == 'owner' or request.user.role == 'accountant' %}
     <div class="col-md-6">
         <div class="card">
             <div class="card-header bg-light">
-                <h5 class="mb-0">Inventory by Category</h5>
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart me-2"></i>
+                    Inventory Value by Category
+                </h5>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -161,11 +367,68 @@
                                 <td class="text-end">{{ cat.count }}</td>
                                 <td class="text-end">Ksh {{ cat.total_value|floatformat:2 }}</td>
                                 <td class="text-end">
-                                <td class="text-end">
                                     {% if total_value > 0 %}
                                     {{ cat.total_value|div:total_value|mul:100|floatformat:1 }}%
                                     {% else %}
                                     0%
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-3 text-muted">No categories found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <th>Total</th>
+                                <th class="text-end">{{ total_materials }}</th>
+                                <th class="text-end">Ksh {{ total_value|floatformat:2 }}</th>
+                                <th class="text-end">100%</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Production Managers see Available Materials by Category -->
+    {% if request.user.role == 'production_manager' %}
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="bi bi-grid me-2"></i>
+                    Available Materials by Category
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="text-end">Items</th>
+                                <th class="text-end">Available Stock</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cat in category_distribution %}
+                            <tr>
+                                <td>{{ cat.category__name|default:"Uncategorized" }}</td>
+                                <td class="text-end">{{ cat.count }}</td>
+                                <td class="text-end">{{ cat.total_stock|default:cat.count|floatformat:0 }}</td>
+                                <td>
+                                    {% if cat.total_stock > 100 %}
+                                    <span class="badge bg-success">Available</span>
+                                    {% elif cat.total_stock > 50 %}
+                                    <span class="badge bg-warning">Limited</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Low</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -180,53 +443,63 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 
+<!-- Additional row for active alerts - Store Managers only -->
+{% if request.user.role == 'owner' or request.user.role == 'store_manager' %}
 <div class="row mt-4">
-    <div class="col-md-12">
+    <div class="col-12">
         <div class="card">
             <div class="card-header bg-light">
-                <h5 class="mb-0">Quick Actions</h5>
+                <h5 class="mb-0">
+                    <i class="bi bi-bell me-2"></i>
+                    Active Stock Alerts
+                </h5>
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-3 text-center">
-                        <a href="{% url 'inventory:raw_material_create' %}" class="btn btn-outline-primary w-100 mb-2">
-                            <i class="bi bi-plus-lg display-6"></i><br>
-                            Add Raw Material
-                        </a>
-                    </div>
-                    <div class="col-md-3 text-center">
-                        <a href="{% url 'inventory:transaction_create' %}" class="btn btn-outline-success w-100 mb-2">
-                            <i class="bi bi-cart-plus display-6"></i><br>
-                            Record Transaction
-                        </a>
-                    </div>
-                    <div class="col-md-3 text-center">
-                        <a href="{% url 'inventory:adjustment_create' %}" class="btn btn-outline-warning w-100 mb-2">
-                            <i class="bi bi-sliders display-6"></i><br>
-                            Adjust Stock
-                        </a>
-                    </div>
-                    <div class="col-md-3 text-center">
-                        <a href="{% url 'inventory:stock_report' %}" class="btn btn-outline-info w-100 mb-2">
-                            <i class="bi bi-download display-6"></i><br>
-                            Export Report
-                        </a>
-                    </div>
+                    {% if active_alerts %}
+                        {% for alert in active_alerts|slice:":3" %}
+                        <div class="col-md-4 mb-2">
+                            <div class="alert alert-{% if alert.alert_type == 'out_of_stock' %}danger{% else %}warning{% endif %} mb-0">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ alert.raw_material.name }}</strong><br>
+                                        <small>{{ alert.message|truncatechars:50 }}</small>
+                                    </div>
+                                    <a href="{% url 'inventory:acknowledge_alert' alert.id %}" class="btn btn-sm btn-outline-dark">Acknowledge</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-12 text-center py-3">
+                            <i class="bi bi-check-circle text-success"></i> No active alerts
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{% url 'inventory:stock_alerts' %}" class="btn btn-sm btn-outline-warning">
+                        View All Alerts
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
+<!-- Load jQuery first -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    $(document).ready(function() {
+    // Use jQuery ready instead of $ ready
+    jQuery(document).ready(function() {
         // Load stock chart data
-        $.ajax({
+        jQuery.ajax({
             url: '{% url "inventory:api_chart_data" %}',
             type: 'GET',
             success: function(data) {
@@ -244,6 +517,13 @@
                         }
                     }
                 });
+            },
+            error: function(xhr, status, error) {
+                console.log("Error loading chart data:", error);
+                // Fallback message
+                document.getElementById('stockChart').style.display = 'none';
+                document.querySelector('.card-body').innerHTML += 
+                    '<p class="text-muted text-center">Chart data unavailable</p>';
             }
         });
     });

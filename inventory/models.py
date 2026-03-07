@@ -56,7 +56,50 @@ class RawMaterial(models.Model):
     
     def get_absolute_url(self):
         from django.urls import reverse
-        return reverse('inventory:raw_material_detail', args=[str(self.id)])  # Fixed namespace
+        return reverse('inventory:raw_material_detail', args=[str(self.id)])
+    
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        old_instance = None
+        
+        if not is_new:
+            old_instance = RawMaterial.objects.get(pk=self.pk)
+        
+        super().save(*args, **kwargs)
+        
+        # Check if we need to create or update alerts after save
+        if not is_new and old_instance:
+            # Only check if stock has changed
+            if old_instance.current_stock != self.current_stock:
+                self._check_and_create_alerts()
+    
+    def _check_and_create_alerts(self):
+        """Create or update alerts based on current stock levels"""
+        from .models import StockAlert
+        
+        # Deactivate any existing active alerts for this material first
+        StockAlert.objects.filter(
+            raw_material=self,
+            is_active=True
+        ).update(is_active=False)
+        
+        # Check for out of stock (priority 1)
+        if self.current_stock <= 0:
+            StockAlert.objects.create(
+                raw_material=self,
+                alert_type='out_of_stock',
+                message=f'{self.name} is out of stock! Current stock: 0 {self.unit}',
+                is_active=True
+            )
+        
+        # Check for low stock (priority 2)
+        elif self.current_stock <= self.min_stock_level:
+            StockAlert.objects.create(
+                raw_material=self,
+                alert_type='low_stock',
+                message=f'{self.name} is below minimum stock level. Current: {self.current_stock} {self.unit}, Minimum: {self.min_stock_level} {self.unit}',
+                is_active=True
+            )
     
     @property
     def total_value(self):
@@ -175,9 +218,8 @@ class InventoryTransaction(models.Model):
                 # Ensure stock doesn't go negative
                 if raw_material.current_stock < 0:
                     raw_material.current_stock = 0
-            # For adjustment type, the StockAdjustment model handles it
             
-            raw_material.save()
+            raw_material.save()  # This will trigger alert creation in RawMaterial.save()
         
         super().save(*args, **kwargs)
 
@@ -236,7 +278,7 @@ class StockAdjustment(models.Model):
             
             # Update raw material stock
             self.raw_material.current_stock = self.new_stock
-            self.raw_material.save()
+            self.raw_material.save()  # This will trigger alert creation in RawMaterial.save()
             
             # Create inventory transaction
             InventoryTransaction.objects.create(
