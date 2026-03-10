@@ -157,9 +157,84 @@
                                             <i class="bi bi-cart-plus"></i>
                                         </a>
                                         {% endif %}
+                                        <!-- Delete Button -->
+                                        {% if perms.inventory.delete_rawmaterial %}
+                                        <button type="button" 
+                                                class="btn btn-outline-danger" 
+                                                title="Delete"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteModal{{ material.pk }}">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>
+                            
+                            <!-- Delete Confirmation Modal -->
+                            <div class="modal fade" id="deleteModal{{ material.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ material.pk }}" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-danger text-white">
+                                            <h5 class="modal-title" id="deleteModalLabel{{ material.pk }}">
+                                                <i class="bi bi-exclamation-triangle"></i> Confirm Delete
+                                            </h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>Are you sure you want to delete <strong>{{ material.name }}</strong> (Code: {{ material.code }})?</p>
+                                            
+                                            <!-- Check if material has transactions -->
+                                            {% with transaction_count=material.transactions.count %}
+                                                {% if transaction_count > 0 %}
+                                                <div class="alert alert-warning">
+                                                    <i class="bi bi-exclamation-circle"></i>
+                                                    <strong>Cannot Delete</strong> - This material has <strong>{{ transaction_count }}</strong> transaction record(s).
+                                                </div>
+                                                <div class="alert alert-info mt-2">
+                                                    <i class="bi bi-info-circle"></i>
+                                                    To delete this material, you must first delete all related transactions.
+                                                </div>
+                                                {% else %}
+                                                <div class="alert alert-danger">
+                                                    <i class="bi bi-exclamation-triangle"></i>
+                                                    This action cannot be undone. All data associated with this material will be permanently removed.
+                                                </div>
+                                                <div class="form-check mt-3">
+                                                    <input class="form-check-input" type="checkbox" id="confirmCheck{{ material.pk }}" required>
+                                                    <label class="form-check-label fw-bold" for="confirmCheck{{ material.pk }}">
+                                                        I understand this action is permanent and cannot be undone
+                                                    </label>
+                                                </div>
+                                                {% endif %}
+                                            {% endwith %}
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                <i class="bi bi-x-circle"></i> Cancel
+                                            </button>
+                                            
+                                            {% with transaction_count=material.transactions.count %}
+                                                {% if transaction_count > 0 %}
+                                                <a href="{% url 'inventory:transaction_list' %}?material={{ material.id }}" class="btn btn-info">
+                                                    <i class="bi bi-list"></i> View Transactions
+                                                </a>
+                                                <button type="button" class="btn btn-secondary" disabled>
+                                                    <i class="bi bi-trash"></i> Cannot Delete
+                                                </button>
+                                                {% else %}
+                                                <form method="post" action="{% url 'inventory:raw_material_delete' material.pk %}" style="display: inline;">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-danger" id="deleteBtn{{ material.pk }}" disabled>
+                                                        <i class="bi bi-trash"></i> Delete Permanently
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                            {% endwith %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             {% empty %}
                             <tr>
                                 <td colspan="11" class="text-center py-4">
@@ -211,4 +286,37 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% for material in raw_materials %}
+        {% with transaction_count=material.transactions.count %}
+            {% if transaction_count == 0 %}
+            // Get elements for each material
+            const confirmCheck{{ material.pk }} = document.getElementById('confirmCheck{{ material.pk }}');
+            const deleteBtn{{ material.pk }} = document.getElementById('deleteBtn{{ material.pk }}');
+            
+            if (confirmCheck{{ material.pk }} && deleteBtn{{ material.pk }}) {
+                // Initially disable the delete button
+                deleteBtn{{ material.pk }}.disabled = true;
+                
+                // Add event listener to checkbox
+                confirmCheck{{ material.pk }}.addEventListener('change', function() {
+                    deleteBtn{{ material.pk }}.disabled = !this.checked;
+                });
+                
+                // Add style to show button is clickable when enabled
+                deleteBtn{{ material.pk }}.addEventListener('mouseover', function() {
+                    if (!this.disabled) {
+                        this.style.cursor = 'pointer';
+                    }
+                });
+            }
+            {% endif %}
+        {% endwith %}
+    {% endfor %}
+});
+</script>
 {% endblock %}

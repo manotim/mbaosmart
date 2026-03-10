@@ -238,6 +238,40 @@ def delete_raw_material(request, pk):
     messages.success(request, 'Raw material deleted successfully!')
     return redirect('inventory:raw_material_list')  # Fixed namespace
 
+
+@login_required
+@permission_required('inventory.delete_rawmaterial')
+def delete_raw_material(request, pk):
+    material = get_object_or_404(RawMaterial, pk=pk)
+    
+    # Check if material is used in any transactions
+    transaction_count = material.transactions.count()
+    
+    if transaction_count > 0:
+        messages.error(
+            request, 
+            f'Cannot delete "{material.name}" because it has {transaction_count} transaction record(s). '
+            'Consider deactivating it or removing the transactions first.'
+        )
+        return redirect('inventory:raw_material_list')
+    
+    # Also check for related purchase orders
+    from procurement.models import PurchaseOrderItem
+    po_count = PurchaseOrderItem.objects.filter(raw_material=material).count()
+    
+    if po_count > 0:
+        messages.error(
+            request, 
+            f'Cannot delete "{material.name}" because it is referenced in {po_count} purchase order(s).'
+        )
+        return redirect('inventory:raw_material_list')
+    
+    # Store name for success message
+    material_name = material.name
+    material.delete()
+    messages.success(request, f'Raw material "{material_name}" deleted successfully!')
+    return redirect('inventory:raw_material_list')
+
 # Inventory Transaction Views
 class InventoryTransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = InventoryTransaction
